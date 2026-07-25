@@ -1,0 +1,15 @@
+{
+    "name": "alfacode-team/hkm-plugin-user",
+    "description": "HKM Kernel plugin providing 'user.management'.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["hkm-kernel", "plugin", "php", "user.management"],
+    "require": {
+        "php": ">=8.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Plugins\\User\\": ""
+        }
+    }
+}
