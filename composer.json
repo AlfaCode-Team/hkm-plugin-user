@@ -3,13 +3,100 @@
     "description": "HKM Kernel plugin providing 'user.management'.",
     "type": "library",
     "license": "MIT",
-    "keywords": ["hkm-kernel", "plugin", "php", "user.management"],
+    "keywords": [
+        "hkm-kernel",
+        "plugin",
+        "php",
+        "user.management"
+    ],
     "require": {
-        "php": ">=8.4"
+        "php": ">=8.4",
+        "alfacode-team/php-service-platform": "dev-master",
+        "alfacode-team/hkm-plugin-audit": "dev-main",
+        "alfacode-team/hkm-plugin-crypto": "dev-main",
+        "alfacode-team/hkm-plugin-database": "dev-main",
+        "alfacode-team/hkm-plugin-feedback": "dev-main",
+        "alfacode-team/hkm-plugin-http-client": "dev-main",
+        "alfacode-team/hkm-plugin-mail": "dev-main",
+        "alfacode-team/hkm-plugin-redis-cache": "dev-main",
+        "alfacode-team/hkm-plugin-validation": "dev-main",
+        "alfacode-team/hkm-plugin-view": "dev-main"
     },
     "autoload": {
         "psr-4": {
             "Plugins\\User\\": ""
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11 || ^12 || ^13"
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/AlfaCode-Team/hkm-kernel"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/AlfaCode-Team/hkm-plugin-audit"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/AlfaCode-Team/hkm-plugin-crypto"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/AlfaCode-Team/hkm-plugin-database"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/AlfaCode-Team/hkm-plugin-feedback"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/AlfaCode-Team/hkm-plugin-http-client"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/AlfaCode-Team/hkm-plugin-mail"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/AlfaCode-Team/hkm-plugin-redis-cache"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/AlfaCode-Team/hkm-plugin-validation"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/AlfaCode-Team/hkm-plugin-view"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/AlfaCode-Team/http"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/AlfaCode-Team/php-io-cli"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/AlfaCode-Team/Let-Migrate"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/hakrichTech/bindIt"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/hakrichTech/type-alias"
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\Unit\\Plugins\\User\\": "tests/"
         }
     }
 }
