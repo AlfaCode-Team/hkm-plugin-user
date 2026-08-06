@@ -53,13 +53,20 @@ return new class implements MigrationInterface {
             $t->string('email', 150);
 
             // --- Password hash ----------------------------------------------
-            // WHAT:  bcrypt hash of the password — ALWAYS exactly 60 chars.
-            // WHY:   Never store plaintext. CHAR(60) matches bcrypt's fixed
-            //        output exactly (no wasted space, no truncation risk).
+            // WHAT:  password_* hash — bcrypt (60 chars) or argon2id (~97).
+            // WHY:   Never store plaintext. VARCHAR(255), NOT CHAR(60): the
+            //        HashingPort adapter and Auth's contract both advertise
+            //        argon2id, whose output does not fit in 60 characters. On
+            //        MySQL in non-strict mode that write is silently truncated
+            //        — registration reports success and the account can then
+            //        never log in, with nothing logged to explain it. VARCHAR
+            //        stores only the bytes used, so a bcrypt hash still costs
+            //        60 bytes + 1; the CHAR "saving" bought silent data loss.
             //        Nullable-free: federated users still get a row, see below.
             // WHERE: Written by UserService on register/change-password;
             //        compared with a timing-safe verify + rehash-on-login.
-            $t->char('password_hash', 60)->comment('bcrypt — always 60 chars');
+            $t->string('password_hash', 255)
+                ->comment('password_* hash — bcrypt (60) or argon2id (~97); width allows either');
 
             // --- Remember-me token ------------------------------------------
             // WHAT:  SHA-256 hash (64 hex chars) of the "remember me" cookie
