@@ -366,13 +366,35 @@ final class UserService implements UserServiceContract
 
     public function verifyEmail(string $id, VerifyEmailDTO $dto): ?UserDTO
     {
-        // The caller (or an Auth module) issues the token; here we accept it for
-        // the user being acted on. Self-or-admin still applies.
         $this->requireSelfOrPermission($id, 'user:update-any');
 
         $user = $this->repository->find($id);
         if ($user === null) {
             return null;
+        }
+
+        // PROVE OWNERSHIP OF THE MAILBOX.
+        //
+        // $dto->token used to be accepted and never looked at, so the whole
+        // check was "are you logged in as this user" — which says nothing about
+        // whether the address is yours. Anyone could register with someone
+        // else's address and self-verify it, defeating the entire point of
+        // verification (and any downstream trust placed in a verified email,
+        // such as password reset or social-account linking).
+        //
+        // An admin acting on another account is exempt: they are not proving
+        // mailbox control, they are overriding it deliberately, and that is
+        // already gated on user:update-any and audited below.
+        if (!$this->actingOnBehalfOfAnother($id)) {
+            $token = trim($dto->token);
+
+            if ($token === '' || !$this->tokenBelongsTo($user, $token)) {
+                throw $this->wrap(
+                    new \RuntimeException('Invalid or expired verification token.'),
+                    'user.verify_email.invalid_token',
+                    ['id' => $id],
+                );
+            }
         }
 
         $this->collector->beginCollection();
@@ -399,6 +421,33 @@ final class UserService implements UserServiceContract
         $this->audit->record('user.email_verified', userId: $id);
 
         return UserDTO::fromEntity($user);
+    }
+
+    /**
+     * True when the caller is an ADMIN acting on someone else's account, rather
+     * than the account owner acting on their own.
+     */
+    private function actingOnBehalfOfAnother(string $id): bool
+    {
+        return $this->identity->userId !== '' && $this->identity->userId !== $id;
+    }
+
+    /**
+     * Does $token match the verification token stored for $user, and is it still
+     * valid? Compared by SHA-256 hash with hash_equals, exactly as the public
+     * link path does — the plaintext token is never stored.
+     */
+    private function tokenBelongsTo(object $user, string $token): bool
+    {
+        $found = $this->repository->findByVerificationTokenHash(hash('sha256', $token));
+
+        if ($found === null || !hash_equals((string) $found->id(), (string) $user->id())) {
+            return false;
+        }
+
+        $expiresAt = $found->emailVerificationExpiresAt();
+
+        return $expiresAt !== null && $expiresAt >= new \DateTimeImmutable();
     }
 
     public function verifyCredentials(string $identifier, string $password): ?UserDTO
