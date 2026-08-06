@@ -1,6 +1,7 @@
 {
     "name": "user",
     "version": "1.0.0",
+    "kernel": "^1.0",
     "solves": "user.management",
     "type": "module",
     "requires": [
