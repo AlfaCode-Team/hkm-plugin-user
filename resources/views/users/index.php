@@ -4,21 +4,21 @@
  */
 ?>
 <div class="card">
-    <h2>Users</h2>
-    <p class="muted">Loaded from <code>GET /ajx/users</code> (requires the <code>auth</code> filter).</p>
+    <h2><?= htmlspecialchars(trans('user::user.users.title'), ENT_QUOTES, 'UTF-8') ?></h2>
+    <p class="muted"><?= htmlspecialchars(trans('user::user.common.loaded_from'), ENT_QUOTES, 'UTF-8') ?><code>GET /ajx/users</code> (requires the <code>auth</code> filter).</p>
 
     <table>
         <thead>
-            <tr><th>Username</th><th>Email</th><th>Status</th><th>Created</th><th></th></tr>
+            <tr><th><?= htmlspecialchars(trans('user::user.common.username'), ENT_QUOTES, 'UTF-8') ?></th><th><?= htmlspecialchars(trans('user::user.common.email'), ENT_QUOTES, 'UTF-8') ?></th><th><?= htmlspecialchars(trans('user::user.common.status'), ENT_QUOTES, 'UTF-8') ?></th><th><?= htmlspecialchars(trans('user::user.common.created'), ENT_QUOTES, 'UTF-8') ?></th><th></th></tr>
         </thead>
         <tbody id="rows">
-            <tr><td colspan="5" class="muted">Loading…</td></tr>
+            <tr><td colspan="5" class="muted"><?= htmlspecialchars(trans('user::user.common.loading'), ENT_QUOTES, 'UTF-8') ?></td></tr>
         </tbody>
     </table>
 
     <div class="actions">
-        <a class="btn btn-primary" href="/users/create">Create user</a>
-        <button class="btn" type="button" id="reload">Reload</button>
+        <a class="btn btn-primary" href="/users/create"><?= htmlspecialchars(trans('user::user.users.create_user'), ENT_QUOTES, 'UTF-8') ?></a>
+        <button class="btn" type="button" id="reload"><?= htmlspecialchars(trans('user::user.common.reload'), ENT_QUOTES, 'UTF-8') ?></button>
     </div>
 </div>
 
@@ -29,9 +29,9 @@
         <td><span class="badge c-status"></span></td>
         <td class="c-created muted"></td>
         <td>
-            <a class="btn btn-sm c-view" href="#">View</a>
-            <a class="btn btn-sm c-edit" href="#">Edit</a>
-            <button class="btn btn-sm btn-danger c-del" type="button">Delete</button>
+            <a class="btn btn-sm c-view" href="#"><?= htmlspecialchars(trans('user::user.common.view'), ENT_QUOTES, 'UTF-8') ?></a>
+            <a class="btn btn-sm c-edit" href="#"><?= htmlspecialchars(trans('user::user.common.edit'), ENT_QUOTES, 'UTF-8') ?></a>
+            <button class="btn btn-sm btn-danger c-del" type="button"><?= htmlspecialchars(trans('user::user.common.delete'), ENT_QUOTES, 'UTF-8') ?></button>
         </td>
     </tr>
 </template>
@@ -44,7 +44,7 @@
     function render(users) {
         tbody.innerHTML = '';
         if (!users.length) {
-            tbody.innerHTML = '<tr><td colspan="5" class="muted">No users yet.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="muted"><?= htmlspecialchars(trans('user::user.users.empty'), ENT_QUOTES, 'UTF-8') ?></td></tr>';
             return;
         }
         for (const u of users) {
@@ -63,7 +63,7 @@
     }
 
     async function load() {
-        tbody.innerHTML = '<tr><td colspan="5" class="muted">Loading…</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="muted"><?= htmlspecialchars(trans('user::user.common.loading'), ENT_QUOTES, 'UTF-8') ?></td></tr>';
         try {
             const res = await window.UserApp.list();
             render(res.data || []);

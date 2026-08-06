@@ -12,31 +12,31 @@
  */
 ?>
 <div class="card" style="margin-bottom:1.5rem">
-    <h2>Submit feedback</h2>
+    <h2><?= htmlspecialchars(trans('user::user.feedback.title'), ENT_QUOTES, 'UTF-8') ?></h2>
     <p class="muted">POST <code>/ajx/feedback</code></p>
     <form id="create-form">
-        <label>Category</label>
+        <label><?= htmlspecialchars(trans('user::user.feedback.category'), ENT_QUOTES, 'UTF-8') ?></label>
         <select name="category">
             <option value="">(none)</option>
             <option>search_browsing</option><option>messaging</option><option>payments</option>
             <option>hosting</option><option>app_performance</option><option>feature_request</option><option>other</option>
         </select>
-        <label>Rating (1–5, optional)</label><input name="rating" type="number" min="1" max="5">
-        <label>Message</label><input name="message" placeholder="Tell us what you think">
+        <label><?= htmlspecialchars(trans('user::user.feedback.rating_hint'), ENT_QUOTES, 'UTF-8') ?></label><input name="rating" type="number" min="1" max="5">
+        <label><?= htmlspecialchars(trans('user::user.feedback.message'), ENT_QUOTES, 'UTF-8') ?></label><input name="message" placeholder="Tell us what you think">
         <div class="field-error" data-err="create"></div>
-        <div class="actions"><button class="btn btn-primary">Send feedback</button></div>
+        <div class="actions"><button class="btn btn-primary"><?= htmlspecialchars(trans('user::user.feedback.send'), ENT_QUOTES, 'UTF-8') ?></button></div>
     </form>
 </div>
 
 <div class="card">
     <div style="display:flex;align-items:center;gap:1rem">
-        <h2 style="margin:0">Triage <span class="muted">(admin)</span></h2>
-        <button class="btn btn-sm" id="reload" style="margin-left:auto">Reload</button>
+        <h2 style="margin:0"><?= htmlspecialchars(trans('user::user.feedback.triage'), ENT_QUOTES, 'UTF-8') ?><span class="muted">(admin)</span></h2>
+        <button class="btn btn-sm" id="reload" style="margin-left:auto"><?= htmlspecialchars(trans('user::user.common.reload'), ENT_QUOTES, 'UTF-8') ?></button>
     </div>
     <p class="muted">GET <code>/ajx/feedback</code> · PATCH <code>/ajx/feedback/{id}</code></p>
     <table>
-        <thead><tr><th>ID</th><th>User</th><th>Category</th><th>Rating</th><th>Status</th><th></th></tr></thead>
-        <tbody id="rows"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
+        <thead><tr><th>ID</th><th><?= htmlspecialchars(trans('user::user.feedback.user'), ENT_QUOTES, 'UTF-8') ?></th><th><?= htmlspecialchars(trans('user::user.feedback.category'), ENT_QUOTES, 'UTF-8') ?></th><th><?= htmlspecialchars(trans('user::user.feedback.rating'), ENT_QUOTES, 'UTF-8') ?></th><th><?= htmlspecialchars(trans('user::user.common.status'), ENT_QUOTES, 'UTF-8') ?></th><th></th></tr></thead>
+        <tbody id="rows"><tr><td colspan="6" class="muted"><?= htmlspecialchars(trans('user::user.common.loading'), ENT_QUOTES, 'UTF-8') ?></td></tr></tbody>
     </table>
 </div>
 
@@ -78,11 +78,11 @@
     // READ (list) + UPDATE (advance status)
     const rows = document.getElementById('rows');
     async function load() {
-        rows.innerHTML = '<tr><td colspan="6" class="muted">Loading…</td></tr>';
+        rows.innerHTML = '<tr><td colspan="6" class="muted"><?= htmlspecialchars(trans('user::user.common.loading'), ENT_QUOTES, 'UTF-8') ?></td></tr>';
         try {
             const res = await api('GET', '/ajx/feedback');
             const items = res.data || [];
-            if (!items.length) { rows.innerHTML = '<tr><td colspan="6" class="muted">No feedback.</td></tr>'; return; }
+            if (!items.length) { rows.innerHTML = '<tr><td colspan="6" class="muted"><?= htmlspecialchars(trans('user::user.feedback.empty'), ENT_QUOTES, 'UTF-8') ?></td></tr>'; return; }
             rows.innerHTML = '';
             for (const f of items) {
                 const tr = document.createElement('tr');

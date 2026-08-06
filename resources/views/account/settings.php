@@ -11,57 +11,57 @@
  */
 ?>
 <div class="card" style="margin-bottom:1.5rem">
-    <h2>Profile</h2>
+    <h2><?= htmlspecialchars(trans('user::user.settings.profile'), ENT_QUOTES, 'UTF-8') ?></h2>
     <p class="muted">GET / PUT <code>/ajx/profile</code></p>
     <form id="profile-form">
-        <label>First name</label><input name="firstName">
-        <label>Last name</label><input name="lastName">
-        <label>Avatar URL (http/https)</label><input name="avatarUrl">
-        <label>Timezone</label><input name="timezone" placeholder="Africa/Kampala">
-        <label>Locale</label><input name="locale" placeholder="en_US">
-        <label>Phone</label><input name="phone">
+        <label><?= htmlspecialchars(trans('user::user.settings.first_name'), ENT_QUOTES, 'UTF-8') ?></label><input name="firstName">
+        <label><?= htmlspecialchars(trans('user::user.settings.last_name'), ENT_QUOTES, 'UTF-8') ?></label><input name="lastName">
+        <label><?= htmlspecialchars(trans('user::user.settings.avatar_url'), ENT_QUOTES, 'UTF-8') ?></label><input name="avatarUrl">
+        <label><?= htmlspecialchars(trans('user::user.settings.timezone'), ENT_QUOTES, 'UTF-8') ?></label><input name="timezone" placeholder="Africa/Kampala">
+        <label><?= htmlspecialchars(trans('user::user.settings.locale'), ENT_QUOTES, 'UTF-8') ?></label><input name="locale" placeholder="en_US">
+        <label><?= htmlspecialchars(trans('user::user.settings.phone'), ENT_QUOTES, 'UTF-8') ?></label><input name="phone">
         <div class="field-error" data-err="profile"></div>
-        <div class="actions"><button class="btn btn-primary">Save profile</button></div>
+        <div class="actions"><button class="btn btn-primary"><?= htmlspecialchars(trans('user::user.settings.save_profile'), ENT_QUOTES, 'UTF-8') ?></button></div>
     </form>
 </div>
 
 <div class="card" style="margin-bottom:1.5rem">
-    <h2>Preferences</h2>
+    <h2><?= htmlspecialchars(trans('user::user.settings.preferences'), ENT_QUOTES, 'UTF-8') ?></h2>
     <p class="muted">GET / PUT <code>/ajx/preferences</code></p>
     <form id="preferences-form">
-        <label>Language</label><input name="language" placeholder="en">
-        <label>Currency</label><input name="currency" placeholder="UGX">
-        <label>Theme</label>
+        <label><?= htmlspecialchars(trans('user::user.settings.language'), ENT_QUOTES, 'UTF-8') ?></label><input name="language" placeholder="en">
+        <label><?= htmlspecialchars(trans('user::user.settings.currency'), ENT_QUOTES, 'UTF-8') ?></label><input name="currency" placeholder="UGX">
+        <label><?= htmlspecialchars(trans('user::user.settings.theme'), ENT_QUOTES, 'UTF-8') ?></label>
         <select name="theme"><option>system</option><option>light</option><option>dark</option></select>
         <label><input type="checkbox" name="reduceMotion"> Reduce motion</label>
         <label><input type="checkbox" name="largerText"> Larger text</label>
         <label><input type="checkbox" name="highContrast"> High contrast</label>
         <label><input type="checkbox" name="screenReaderHints"> Screen-reader hints</label>
         <div class="field-error" data-err="preferences"></div>
-        <div class="actions"><button class="btn btn-primary">Save preferences</button></div>
+        <div class="actions"><button class="btn btn-primary"><?= htmlspecialchars(trans('user::user.settings.save_preferences'), ENT_QUOTES, 'UTF-8') ?></button></div>
     </form>
 </div>
 
 <div class="card" style="margin-bottom:1.5rem">
-    <h2>Privacy</h2>
+    <h2><?= htmlspecialchars(trans('user::user.settings.privacy'), ENT_QUOTES, 'UTF-8') ?></h2>
     <p class="muted">GET / PUT <code>/ajx/privacy</code></p>
     <form id="privacy-form">
-        <label>Profile visibility</label>
+        <label><?= htmlspecialchars(trans('user::user.settings.profile_visibility'), ENT_QUOTES, 'UTF-8') ?></label>
         <select name="profileVisibility"><option>public</option><option>private</option><option>contacts</option></select>
         <label><input type="checkbox" name="showPhone"> Show phone</label>
         <label><input type="checkbox" name="showEmail"> Show email</label>
         <label><input type="checkbox" name="marketingOptIn"> Marketing opt-in</label>
         <label><input type="checkbox" name="analyticsOptIn"> Analytics opt-in</label>
         <div class="field-error" data-err="privacy"></div>
-        <div class="actions"><button class="btn btn-primary">Save privacy</button></div>
+        <div class="actions"><button class="btn btn-primary"><?= htmlspecialchars(trans('user::user.settings.save_privacy'), ENT_QUOTES, 'UTF-8') ?></button></div>
     </form>
 </div>
 
 <div class="card">
-    <h2>Notifications</h2>
+    <h2><?= htmlspecialchars(trans('user::user.settings.notifications'), ENT_QUOTES, 'UTF-8') ?></h2>
     <p class="muted">GET / PUT <code>/ajx/notification-preferences</code></p>
-    <table id="notif-table"><tbody><tr><td class="muted">Loading…</td></tr></tbody></table>
-    <div class="actions"><button class="btn btn-primary" id="notif-save">Save notifications</button></div>
+    <table id="notif-table"><tbody><tr><td class="muted"><?= htmlspecialchars(trans('user::user.common.loading'), ENT_QUOTES, 'UTF-8') ?></td></tr></tbody></table>
+    <div class="actions"><button class="btn btn-primary" id="notif-save"><?= htmlspecialchars(trans('user::user.settings.save_notifications'), ENT_QUOTES, 'UTF-8') ?></button></div>
 </div>
 
 <script>

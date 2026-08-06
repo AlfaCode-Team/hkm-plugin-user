@@ -13,7 +13,8 @@
         "validation.rules",
         "mail.delivery",
         "feedback.management",
-        "audit.trail"
+        "audit.trail",
+        "i18n.translation"
     ],
     "exposes": [
         "Plugins\\User\\API\\Contracts\\UserServiceContract"
@@ -263,7 +264,7 @@
         "user.deleted"
     ],
     "listens": [],
-    "documentation": "The User plugin \u2014 owns the user.management domain. CRUD + email verification + timing-safe, rate-limited credential verification over the GLOBAL central `users` identity table (identity is centralized, username/email globally unique, repository + outbox pinned to the central connection). Passwords are hashed via crypto.services (bcrypt, rehash-on-login); hashes and remember tokens never cross the API boundary. Writes are optimistic-locked (version); integration events use a transactional outbox drained by `user:outbox:relay`. Enabling publishes config/, database/ (migrations, seeder, factory) and resources/.",
+    "documentation": "The User plugin — owns the user.management domain. CRUD + email verification + timing-safe, rate-limited credential verification over the GLOBAL central `users` identity table (identity is centralized, username/email globally unique, repository + outbox pinned to the central connection). Passwords are hashed via crypto.services (bcrypt, rehash-on-login); hashes and remember tokens never cross the API boundary. Writes are optimistic-locked (version); integration events use a transactional outbox drained by `user:outbox:relay`. Enabling publishes config/, database/ (migrations, seeder, factory) and resources/.",
     "commands": [
         "Plugins\\User\\Infrastructure\\Cli\\RelayUserOutboxCommand"
     ],
@@ -283,5 +284,10 @@
             "type": "int",
             "required": false
         }
-    ]
+    ],
+    "lang": {
+        "path": "resources/lang",
+        "namespace": "user",
+        "global": false
+    }
 }
