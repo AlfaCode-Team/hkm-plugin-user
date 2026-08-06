@@ -6,27 +6,27 @@
  */
 ?>
 <div class="card">
-    <h2>Create account</h2>
-    <p class="muted">Submits to <code>POST /ajx/users</code> (rate-limited, public signup).</p>
+    <h2><?= htmlspecialchars(trans('user::user.users.create_account'), ENT_QUOTES, 'UTF-8') ?></h2>
+    <p class="muted"><?= htmlspecialchars(trans('user::user.common.submits_to'), ENT_QUOTES, 'UTF-8') ?><code>POST /ajx/users</code> (rate-limited, public signup).</p>
 
     <form id="create-form" novalidate>
         <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrf ?? '', ENT_QUOTES, 'UTF-8') ?>">
 
-        <label for="username">Username</label>
+        <label for="username"><?= htmlspecialchars(trans('user::user.common.username'), ENT_QUOTES, 'UTF-8') ?></label>
         <input id="username" name="username" autocomplete="username" required>
         <div class="field-error" data-for="username"></div>
 
-        <label for="email">Email</label>
+        <label for="email"><?= htmlspecialchars(trans('user::user.common.email'), ENT_QUOTES, 'UTF-8') ?></label>
         <input id="email" name="email" type="email" autocomplete="email" required>
         <div class="field-error" data-for="email"></div>
 
-        <label for="password">Password</label>
+        <label for="password"><?= htmlspecialchars(trans('user::user.common.password'), ENT_QUOTES, 'UTF-8') ?></label>
         <input id="password" name="password" type="password" autocomplete="new-password" required>
         <div class="field-error" data-for="password"></div>
 
         <div class="actions">
-            <button class="btn btn-primary" type="submit">Create</button>
-            <a class="btn" href="/users">Cancel</a>
+            <button class="btn btn-primary" type="submit"><?= htmlspecialchars(trans('user::user.common.create'), ENT_QUOTES, 'UTF-8') ?></button>
+            <a class="btn" href="/users"><?= htmlspecialchars(trans('user::user.common.cancel'), ENT_QUOTES, 'UTF-8') ?></a>
         </div>
     </form>
 </div>

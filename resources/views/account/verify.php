@@ -12,7 +12,7 @@
 $token = (string) ($token ?? '');
 ?>
 <div class="card">
-    <h2>Verify your email</h2>
+    <h2><?= htmlspecialchars(trans('user::user.verify.title'), ENT_QUOTES, 'UTF-8') ?></h2>
     <p class="muted">
         Paste the verification token from your email below, or follow the link we
         sent you. Submits to <code>POST /ajx/users/verify</code>.
@@ -23,14 +23,14 @@ $token = (string) ($token ?? '');
     <form id="verify-form" novalidate>
         <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrf ?? '', ENT_QUOTES, 'UTF-8') ?>">
 
-        <label for="token">Verification token</label>
+        <label for="token"><?= htmlspecialchars(trans('user::user.verify.token'), ENT_QUOTES, 'UTF-8') ?></label>
         <input id="token" name="token" autocomplete="off" required
                value="<?= htmlspecialchars($token, ENT_QUOTES, 'UTF-8') ?>">
         <div class="field-error" data-for="token"></div>
 
         <div class="actions">
-            <button class="btn btn-primary" type="submit">Verify email</button>
-            <a class="btn" href="/users">Cancel</a>
+            <button class="btn btn-primary" type="submit"><?= htmlspecialchars(trans('user::user.verify.submit'), ENT_QUOTES, 'UTF-8') ?></button>
+            <a class="btn" href="/users"><?= htmlspecialchars(trans('user::user.common.cancel'), ENT_QUOTES, 'UTF-8') ?></a>
         </div>
     </form>
 </div>

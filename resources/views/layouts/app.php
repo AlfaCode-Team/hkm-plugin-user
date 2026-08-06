@@ -16,7 +16,7 @@ $csrf    = $csrf    ?? '';
 $seoHead = $seoHead ?? '';
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?= htmlspecialchars(lang_locale(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -65,11 +65,11 @@ $seoHead = $seoHead ?? '';
 </head>
 <body>
     <header>
-        <h1>User Management</h1>
+        <h1><?= htmlspecialchars(trans('user::user.nav.brand'), ENT_QUOTES, 'UTF-8') ?></h1>
         <nav>
-            <a href="/users">All users</a>
-            <a href="/users/create">Create</a>
-            <a href="/account/settings">Settings</a>
+            <a href="/users"><?= htmlspecialchars(trans('user::user.nav.all_users'), ENT_QUOTES, 'UTF-8') ?></a>
+            <a href="/users/create"><?= htmlspecialchars(trans('user::user.common.create'), ENT_QUOTES, 'UTF-8') ?></a>
+            <a href="/account/settings"><?= htmlspecialchars(trans('user::user.nav.settings'), ENT_QUOTES, 'UTF-8') ?></a>
         </nav>
     </header>
 

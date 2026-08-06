@@ -10,13 +10,13 @@
  */
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?= htmlspecialchars(lang_locale(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
     <meta charset="utf-8">
-    <title>User</title>
+    <title><?= htmlspecialchars(trans('user::user.feedback.user'), ENT_QUOTES, 'UTF-8') ?></title>
 </head>
 <body>
-    <h1>User plugin</h1>
-    <p>Edit this view at <code>resources/views/user.php</code>.</p>
+    <h1><?= htmlspecialchars(trans('user::user.placeholder.title'), ENT_QUOTES, 'UTF-8') ?></h1>
+    <p><?= htmlspecialchars(trans('user::user.placeholder.edit_at'), ENT_QUOTES, 'UTF-8') ?><code>resources/views/user.php</code>.</p>
 </body>
 </html>

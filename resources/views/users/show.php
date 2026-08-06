@@ -6,14 +6,14 @@
  */
 ?>
 <div class="card">
-    <h2>User detail</h2>
+    <h2><?= htmlspecialchars(trans('user::user.users.detail'), ENT_QUOTES, 'UTF-8') ?></h2>
 
-    <div id="detail" class="muted">Loading…</div>
+    <div id="detail" class="muted"><?= htmlspecialchars(trans('user::user.common.loading'), ENT_QUOTES, 'UTF-8') ?></div>
 
     <div class="actions">
-        <a class="btn" href="/users">Back to list</a>
-        <a class="btn btn-primary" id="edit" href="#">Edit</a>
-        <button class="btn btn-danger" type="button" id="delete">Delete</button>
+        <a class="btn" href="/users"><?= htmlspecialchars(trans('user::user.common.back_to_list'), ENT_QUOTES, 'UTF-8') ?></a>
+        <a class="btn btn-primary" id="edit" href="#"><?= htmlspecialchars(trans('user::user.common.edit'), ENT_QUOTES, 'UTF-8') ?></a>
+        <button class="btn btn-danger" type="button" id="delete"><?= htmlspecialchars(trans('user::user.common.delete'), ENT_QUOTES, 'UTF-8') ?></button>
     </div>
 </div>
 

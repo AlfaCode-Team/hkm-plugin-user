@@ -11,7 +11,7 @@
 $url = (string) ($url ?? '#');
 ?>
 <!doctype html>
-<html lang="en">
+<html lang="<?= htmlspecialchars(lang_locale(), ENT_QUOTES, 'UTF-8') ?>">
 <body style="margin:0;padding:24px;background:#f5f5f5;font-family:Arial,Helvetica,sans-serif;color:#222;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         <tr>
@@ -19,7 +19,7 @@ $url = (string) ($url ?? '#');
                 <table role="presentation" width="480" cellpadding="0" cellspacing="0"
                        style="background:#ffffff;border-radius:8px;padding:32px;">
                     <tr><td>
-                        <h1 style="margin:0 0 16px;font-size:20px;">Confirm your email</h1>
+                        <h1 style="margin:0 0 16px;font-size:20px;"><?= htmlspecialchars(trans('user::user.verify.email_heading'), ENT_QUOTES, 'UTF-8') ?></h1>
                         <p style="margin:0 0 24px;line-height:1.5;">
                             Thanks for signing up. Please confirm your email address to activate
                             your account. This link expires in 24 hours.

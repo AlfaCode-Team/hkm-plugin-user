@@ -7,27 +7,27 @@
  */
 ?>
 <div class="card">
-    <h2>Edit user</h2>
-    <p class="muted">Partial update — leave password blank to keep it unchanged.</p>
+    <h2><?= htmlspecialchars(trans('user::user.users.edit_user'), ENT_QUOTES, 'UTF-8') ?></h2>
+    <p class="muted"><?= htmlspecialchars(trans('user::user.users.partial_update'), ENT_QUOTES, 'UTF-8') ?></p>
 
     <form id="edit-form" novalidate>
         <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrf ?? '', ENT_QUOTES, 'UTF-8') ?>">
 
-        <label for="username">Username</label>
+        <label for="username"><?= htmlspecialchars(trans('user::user.common.username'), ENT_QUOTES, 'UTF-8') ?></label>
         <input id="username" name="username" autocomplete="username">
         <div class="field-error" data-for="username"></div>
 
-        <label for="email">Email</label>
+        <label for="email"><?= htmlspecialchars(trans('user::user.common.email'), ENT_QUOTES, 'UTF-8') ?></label>
         <input id="email" name="email" type="email" autocomplete="email">
         <div class="field-error" data-for="email"></div>
 
-        <label for="password">New password</label>
+        <label for="password"><?= htmlspecialchars(trans('user::user.users.new_password'), ENT_QUOTES, 'UTF-8') ?></label>
         <input id="password" name="password" type="password" autocomplete="new-password" placeholder="(unchanged)">
         <div class="field-error" data-for="password"></div>
 
         <div class="actions">
-            <button class="btn btn-primary" type="submit">Save changes</button>
-            <a class="btn" id="back" href="#">Cancel</a>
+            <button class="btn btn-primary" type="submit"><?= htmlspecialchars(trans('user::user.common.save_changes'), ENT_QUOTES, 'UTF-8') ?></button>
+            <a class="btn" id="back" href="#"><?= htmlspecialchars(trans('user::user.common.cancel'), ENT_QUOTES, 'UTF-8') ?></a>
         </div>
     </form>
 </div>
