@@ -27,7 +27,12 @@ interface UserServiceContract
     /** Keyset-paginated listing (admin-only). */
     public function list(ListUsersQuery $query): UserPage;
 
-    /** Admin/back-office registration — returns the full record for display. */
+    /**
+     * Admin/back-office registration — returns the full record for display.
+     * Requires `user:create`. This is the only thing that distinguishes it
+     * from public signup — the HTTP route itself only requires SOME
+     * authenticated identity, not a privileged one.
+     */
     public function register(RegisterUserDTO $dto): UserDTO;
 
     /**
@@ -71,6 +76,16 @@ interface UserServiceContract
      * Force-set a user's password (password-reset flow — token-authorized, so it
      * bypasses the self/permission gate). Also clears remember tokens so existing
      * "remember me" cookies die. Returns false if no such user.
+     *
+     * SECURITY: this method performs NO authorization check of its own — by
+     * design, since it exists for a caller (e.g. the Auth module) that has
+     * ALREADY verified a password-reset token before calling it. That makes it
+     * a wide trust boundary: EVERY module that adds `user.management` to its
+     * `requires[]` gains the unconditional ability to overwrite any account's
+     * password with no proof of identity beyond having been granted access to
+     * this contract at all. Do not call this without your own prior proof of
+     * control over the account (a validated, single-use, time-boxed token —
+     * the same shape this plugin's own email-verification flow uses).
      */
     public function resetPassword(string $userId, string $newPassword): bool;
 
@@ -103,6 +118,22 @@ interface UserServiceContract
 
     /** Clear a user's remember-token (logout) so outstanding recaller cookies die. */
     public function clearRememberToken(string $userId, bool $checkMembership = false): void;
+
+    /**
+     * Whether $userId is currently locked out of login (the same per-identifier
+     * failure counter verifyCredentials() checks). `user:unlock` permission
+     * required — this reveals a security-relevant state about another account.
+     * Returns false for an unknown user rather than throwing (nothing to leak).
+     */
+    public function lockoutStatus(string $userId): bool;
+
+    /**
+     * Clear a login lockout early, ahead of its TTL. `user:unlock` permission
+     * required — distinct from `user:update-any`, since this reverses a
+     * brute-force control rather than editing profile data. Returns false for
+     * an unknown user.
+     */
+    public function clearLockout(string $userId): bool;
 
     public function delete(string $id, bool $checkMembership = false): bool;
 }

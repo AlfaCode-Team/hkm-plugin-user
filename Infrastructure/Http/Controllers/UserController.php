@@ -185,7 +185,6 @@ final class UserController extends ApiController
         return Response::json([
             'status'  => 'pending_verification',
             'message' => 'If that address needs verifying, we\'ve sent a new link. Check your inbox.',
-            'token'   => $token,  // never echo the token back to the client
         ], 202);
     }
 
@@ -238,7 +237,22 @@ final class UserController extends ApiController
 
     public function update(string $id): Response
     {
-        $user = $this->users->update($id, UpdateUserDTO::fromRequest($this->resolveRequest()));
+        $dto  = UpdateUserDTO::fromRequest($this->resolveRequest());
+        $user = $this->users->update($id, $dto);
+
+        // Changing the email address unverifies the account (see
+        // User::changeEmail()). Left alone, the owner has no way to discover
+        // that — proactively re-send a fresh verification link rather than
+        // waiting for them to find the resend flow themselves. Reuses the
+        // same enumeration-safe resend path signup relies on; a no-op when
+        // no MailPort is bound, same as everywhere else in this controller.
+        if ($user !== null && $dto->email !== null && !$user->emailVerified) {
+            $token = $this->users->resendVerification($user->email);
+            if ($token !== null) {
+                $this->queueVerificationEmail($user->email, $token);
+            }
+        }
+
         return $this->okOrNotFound($user?->toArray(), "User [{$id}] not found.");
     }
 
@@ -251,6 +265,20 @@ final class UserController extends ApiController
     public function destroy(string $id): Response
     {
         return $this->users->delete($id)
+            ? $this->noContent()
+            : $this->notFound("User [{$id}] not found.");
+    }
+
+    /** Admin: is this account currently locked out of login? (`user:unlock`) */
+    public function lockoutStatus(string $id): Response
+    {
+        return $this->ok(['locked' => $this->users->lockoutStatus($id)]);
+    }
+
+    /** Admin: clear a login lockout ahead of its TTL. (`user:unlock`) */
+    public function clearLockout(string $id): Response
+    {
+        return $this->users->clearLockout($id)
             ? $this->noContent()
             : $this->notFound("User [{$id}] not found.");
     }

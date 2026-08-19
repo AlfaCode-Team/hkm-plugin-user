@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Plugins\User\Domain\Entities;
 
-use Plugins\Tenancy\API\DTOs\TenantSummary;
-use Plugins\User\API\IntegrationEvents\UserRegisteredIntegrationEvent;
 use Plugins\User\Domain\Events\UserDeletedDomainEvent;
 use Plugins\User\Domain\Events\UserRegisteredDomainEvent;
 use Plugins\User\Domain\Events\UserUpdatedDomainEvent;
@@ -43,59 +41,16 @@ final class User extends Entity
     /** Credentials + the verification token hash never cross the serialization boundary. */
     protected array $hidden = ['password_hash', 'remember_token', 'email_verification_token_hash'];
 
- 
-    protected ?TenantSummary $membership = null;
-    protected ?UserProfile $profile = null;
-    
-
     /**
-     * Summary of setMembership
-     * @param mixed $membership
-     * @return void
-     */
-    public function setMembership(?TenantSummary $membership): void
-    {
-        $this->membership = $membership;
-    }
-
-    /**
-     * Summary of getMembership
-     * @return TenantSummary|null
-     */
-    public function getMembership(): ?TenantSummary
-    {
-        return $this->membership;
-    }
-
-    /**
-     * Summary of setProfile
-     * @param mixed $profile
-     * @return void
-     */
-    public function setProfile(?UserProfile $profile): void
-    {
-        $this->profile = $profile;
-    }
-
-    /**
-     * Summary of getProfile
-     * @return UserProfile|null
-     */
-    public function getProfile(): ?UserProfile
-    {
-        return $this->profile;
-    }
-
-    /**
-     * Register a brand-new user. $passwordHash MUST already be a bcrypt hash
-     * produced by the HashingPort — never a plaintext password.
+     * Register a brand-new user. $passwordHash MUST already be a hash produced
+     * by the HashingPort (bcrypt or Argon2i/Argon2id) — never a plaintext password.
      */
     public static function register(
         Username $username,
         Email $email,
         string $passwordHash,
     ): self {
-        self::assertBcrypt($passwordHash, 'User must be created with a bcrypt password hash.');
+        self::assertHashedPassword($passwordHash, 'User must be created with a hashed password.');
 
         $id = UserId::generate();
         $createdAt = new \DateTimeImmutable();
@@ -143,10 +98,10 @@ final class User extends Entity
         $this->username = $username->value();
     }
 
-    /** Replace the stored credential with a new bcrypt hash. */
+    /** Replace the stored credential with a new hashed password. */
     public function changePassword(string $passwordHash): void
     {
-        self::assertBcrypt($passwordHash, 'Password must be a bcrypt hash.');
+        self::assertHashedPassword($passwordHash, 'Password must be a hashed value.');
         $this->password_hash = $passwordHash;
         // Any "remember me" sessions are invalidated on credential change.
         $this->remember_token = null;
@@ -236,10 +191,17 @@ final class User extends Entity
         $this->remember_token = $sha256Hash;
     }
 
-    private static function assertBcrypt(string $hash, string $message): void
+    /**
+     * The HashingPort adapter (Plugins\Crypto\Infrastructure\PasswordHasher)
+     * supports bcrypt (default) and Argon2i/Argon2id — password_get_info()
+     * recognises every format PHP's own password_* API can produce, so this
+     * accepts whichever one a project has configured instead of hard-coding
+     * bcrypt's shape. A plain string (plaintext, or anything not actually
+     * produced by password_hash()) reports algoName 'unknown' and is rejected.
+     */
+    private static function assertHashedPassword(string $hash, string $message): void
     {
-        // bcrypt output is always exactly 60 chars and starts with $2y$/$2a$/$2b$.
-        if (strlen($hash) !== 60 || !str_starts_with($hash, '$2')) {
+        if (password_get_info($hash)['algoName'] === 'unknown') {
             throw new \DomainException($message);
         }
     }

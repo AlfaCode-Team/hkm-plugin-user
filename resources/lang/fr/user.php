@@ -80,18 +80,6 @@ return [
         'save_privacy'       => 'Enregistrer la confidentialité',
     ],
 
-    'feedback' => [
-        'title'       => 'Envoyer un commentaire',
-        'category'    => 'Catégorie',
-        'message'     => 'Message',
-        'rating'      => 'Note',
-        'rating_hint' => 'Note (1–5, facultatif)',
-        'send'        => 'Envoyer le commentaire',
-        'empty'       => 'Aucun commentaire.',
-        'user'        => 'Utilisateur',
-        'triage'      => 'Traitement',
-    ],
-
     'placeholder' => [
         'title'   => 'Plugin utilisateur',
         'heading' => 'Utilisateur',

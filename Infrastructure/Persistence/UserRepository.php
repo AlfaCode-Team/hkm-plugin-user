@@ -52,19 +52,34 @@ final class UserRepository implements UserStore
     {
         // Inline LIMIT as a validated int: bound params bind as strings and
         // native prepares (EMULATE_PREPARES=false) reject `LIMIT '100'`.
-        $limit  = max(1, min(1001, $query->limit + 1));
-        $params = [];
-        $cursor = '';
+        $limit      = max(1, min(1001, $query->limit + 1));
+        $params     = [];
+        $conditions = '';
+
         if ($query->after !== null) {
             // user_id DESC → fetch rows strictly "older" than the cursor.
-            $cursor = ' AND user_id < :after';
+            $conditions .= ' AND user_id < :after';
             $params['after'] = $query->after;
+        }
+
+        if ($query->search !== null) {
+            // LOWER() is standard SQL and behaves identically across MySQL,
+            // Postgres and SQLite — unlike ILIKE (Postgres-only) or relying on
+            // column collation for case-insensitivity.
+            $conditions .= ' AND (LOWER(username) LIKE :q OR LOWER(email) LIKE :q)';
+            $params['q'] = '%' . mb_strtolower($query->search) . '%';
+        }
+
+        if ($query->verified !== null) {
+            $conditions .= $query->verified
+                ? ' AND email_verified_at IS NOT NULL'
+                : ' AND email_verified_at IS NULL';
         }
 
         try {
             $rows = $this->db->query(
                 'SELECT ' . self::COLUMNS . ' FROM ' . self::TABLE . '
-                 WHERE deleted_at IS NULL' . $cursor . '
+                 WHERE deleted_at IS NULL' . $conditions . '
                  ORDER BY user_id DESC
                  LIMIT ' . $limit,
                 $params,

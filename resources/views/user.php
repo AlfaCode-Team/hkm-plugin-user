@@ -13,7 +13,7 @@
 <html lang="<?= htmlspecialchars(lang_locale(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
     <meta charset="utf-8">
-    <title><?= htmlspecialchars(trans('user::user.feedback.user'), ENT_QUOTES, 'UTF-8') ?></title>
+    <title><?= htmlspecialchars(trans('user::user.placeholder.title'), ENT_QUOTES, 'UTF-8') ?></title>
 </head>
 <body>
     <h1><?= htmlspecialchars(trans('user::user.placeholder.title'), ENT_QUOTES, 'UTF-8') ?></h1>

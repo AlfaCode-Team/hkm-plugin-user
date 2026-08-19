@@ -22,7 +22,7 @@ adapters behind ports, and a published API contract that other modules consume.
 4. [Data model](#data-model)
 5. [HTTP API](#http-api)
 6. [Web UI (AJAX + CSRF)](#web-ui-ajax--csrf)
-7. [Tenant-scoped sub-resources (feedback & settings)](#tenant-scoped-sub-resources-feedback--settings)
+7. [Tenant-scoped sub-resources (settings)](#tenant-scoped-sub-resources-settings)
 8. [Security model](#security-model)
 9. [Reliability: the transactional outbox](#reliability-the-transactional-outbox)
 10. [Installation & wiring](#installation--wiring)
@@ -43,16 +43,24 @@ adapters behind ports, and a published API contract that other modules consume.
 | Register (admin) | `POST /ajx/admin/users` | `auth` + `user:create`. Returns the FULL created record for the admin table |
 | Verify email (public) | `POST /ajx/users/verify` | **Unauthenticated**, token-based: SHA-256-stored, one-time, 24h expiry. Sets `email_verified_at` |
 | Verify email (self/admin) | `POST /ajx/users/{id}/verify-email` | Authenticated variant (self or `user:update-any`) |
-| List users | `GET /ajx/users` | Admin-only; keyset paginated |
+| List users | `GET /ajx/users` | Admin-only; keyset paginated; `?q=` searches username/email, `?verified=1\|0` filters |
 | Show a user | `GET /ajx/users/{id}` | Self or `user:read-any` |
-| Update (partial) | `PUT/PATCH /ajx/users/{id}` | Self or `user:update-any`; optimistic-locked; emits `user.updated` |
+| Update (partial) | `PUT/PATCH /ajx/users/{id}` | Self or `user:update-any`; optimistic-locked; emits `user.updated`; changing the email re-arms verification and re-sends the link |
 | Soft-delete | `DELETE /ajx/users/{id}` | Self or `user:delete-any`; emits `user.deleted` |
+| Lockout status | `GET /ajx/users/{id}/lockout` | `user:unlock`. `{ "locked": bool }` |
+| Clear lockout | `DELETE /ajx/users/{id}/lockout` | `user:unlock`. Clears the failure counter early, ahead of its TTL |
 | Verify credentials | `UserServiceContract::verifyCredentials()` | Timing-safe, lockout, rehash-on-login; requires a verified email |
 | **Settings** | `GET/PUT /ajx/{profile,preferences,privacy,notification-preferences}` | TENANT-scoped, self-only; one consolidated service |
 | HTML UI | `GET /users[...]`, `/account/settings` | AJAX-driven, cookie auth, CSRF on every form |
 
 > **Recent changes**
-> - **Feedback moved out** into its own [`Plugins\Feedback`](../Feedback/README.md) plugin (one plugin, one domain). The `/ajx/feedback` routes + `user_feedback` table now live there.
+> - **Fixed a broken-access-control bug on admin registration.** `POST /ajx/admin/users` was documented as requiring `auth` + `user:create`, but only `auth` was ever actually enforced — `UserService::register()` had no permission check anywhere in its call chain, so any authenticated user (including a freshly self-registered one) could create accounts through the admin endpoint. `register()` now calls `requirePermission('user:create')`; `registerPublic()` (the intentionally public path) is unaffected.
+> - **Outbox delivery fixed.** A stray commented-out line meant integration events (`user.registered`/`user.updated`/`user.deleted`) never actually dispatched in-process after commit — every one silently depended on the `user:outbox:relay` cron. Restored the intended synchronous dispatch; the relay is now purely the crash-recovery backstop it was designed to be.
+> - **`register`/`verify-email`/`profile` pages now boot the right Vite bundle.** They render on the `site` surface (matching where their `.tsx` files actually live) instead of `admin` — the wrong surface meant a direct page load couldn't resolve the component.
+> - **`User` entity no longer carries tenant membership/profile state.** `UserDTO::fromEntity()` now takes them as parameters instead — keeps the Domain entity from importing another plugin's DTO (`Plugins\Tenancy\API\DTOs\TenantSummary`).
+> - **Admin lockout visibility.** `GET/DELETE /ajx/users/{id}/lockout` — an admin with `user:unlock` can see whether an account is currently rate-limited out of login and clear it early, instead of waiting out the 15-minute TTL.
+> - **User search/filter.** `ListUsersQuery` (and `GET /ajx/users`) now takes `q` (username/email substring) and `verified` (`1`/`0`) alongside `limit`/`after`.
+> - **Feedback moved out** into its own [`Plugins\Feedback`](https://github.com/AlfaCode-Team/hkm-plugin-feedback) plugin (one plugin, one domain). The `/ajx/feedback` routes + `user_feedback` table now live there.
 > - **Registration split** into public (`registerPublic` → token only) vs admin (`register` → full record); public **email verification is token-based** (hashed, one-time, 24h) via `verifyEmailByToken`.
 > - **Input DTOs** now extend `Plugins\Validation\AbstractDto` and declare `rules()` instead of hand-rolled validation.
 
@@ -71,7 +79,7 @@ HTTP ─▶ UserController (thin)              CLI ─▶ user:outbox:relay
    ├─ TransactionManager  begin/commit/rollback
    ├─ DomainEventCollector (in-tx buffer)
    ├─ OutboxPort  ─▶ user_outbox (same tx)  ── at-least-once events
-   ├─ HashingPort (crypto.services)         ── bcrypt, rehash-on-login
+   ├─ HashingPort (crypto.services)         ── bcrypt or Argon2id, rehash-on-login
    ├─ CachePort  ─▶ login lockout
    └─ AuditLogger
           │
@@ -98,35 +106,32 @@ plugins/User/
 ├── API/
 │   ├── Contracts/UserServiceContract.php       the ONLY published interface
 │   ├── DTOs/                                    Register/Update/VerifyEmail/User/ListUsersQuery/UserPage
-│   │                                            + Submit/ListFeedbackQuery/FeedbackPage
 │   │                                            + Update{Profile,Preferences,Privacy,NotificationPreferences}
-│   └── IntegrationEvents/                       UserRegistered/Updated/Deleted, FeedbackSubmitted, Generic
+│   └── IntegrationEvents/                       UserRegistered/Updated/Deleted, Generic
 ├── Application/
-│   ├── Ports/ UserStore, OutboxPort, FeedbackStore   internal DIP seams (testability)
-│   └── Services/  UserService, FeedbackService, UserSettingsService
+│   ├── Ports/ UserStore, OutboxPort   internal DIP seams (testability)
+│   └── Services/  UserService, UserSettingsService
 ├── Domain/
-│   ├── Entities/  User, FeedbackEntry, UserProfile, UserPreferences,
+│   ├── Entities/  User, UserProfile, UserPreferences,
 │   │              UserPrivacySettings, UserNotificationPreferences
 │   ├── Events/                                   UserRegistered/Updated/Deleted domain events
 │   ├── Exceptions/DuplicateUserException.php
-│   └── ValueObjects/  UserId, Ulid, Username, Email, PasswordPolicy,
-│                      Feedback{Id,Category,Rating,Status,Message}, Theme, ProfileVisibility
+│   └── ValueObjects/  UserId, Ulid, Username, Email, PasswordPolicy, Theme, ProfileVisibility
 ├── Infrastructure/
 │   ├── Audit/AuditLogger.php
 │   ├── Cli/RelayUserOutboxCommand.php           user:outbox:relay
-│   ├── Http/Controllers/  UserController, UserPageController,
-│   │                      FeedbackController, UserSettingsController
+│   ├── Http/Controllers/  UserController, UserPageController, UserSettingsController
 │   ├── Outbox/  OutboxWriter, OutboxRelay
-│   └── Persistence/  UserRepository (central), FeedbackRepository + UserSettingsRepository (tenant)
+│   └── Persistence/  UserRepository (central), UserSettingsRepository (tenant)
 ├── config/user.php
 ├── database/
 │   ├── migrations/        create_user_table, create_user_outbox_table   (CENTRAL)
 │   ├── tenant-template/   user_profiles, user_privacy_settings, user_preferences,
-│   │                      user_notification_preferences, user_feedback   (per-TENANT)
+│   │                      user_notification_preferences   (per-TENANT)
 │   ├── seeders/UserSeeder.php
 │   └── factories/UserFactory.php
 └── resources/views/  layouts/app.php, users/{index,create,edit,show}.php,
-                      account/{settings,feedback}.php
+                      account/settings.php
 ```
 
 ---
@@ -143,7 +148,7 @@ alters schema.
 | `user_id` | char(31) | **public** ULID identifier |
 | `username` | varchar(50) | **globally** unique |
 | `email` | varchar(150) | **globally** unique, lowercased |
-| `password_hash` | char(60) | bcrypt (exactly 60 chars) |
+| `password_hash` | varchar(255) | bcrypt (60 chars) or Argon2id (~97 chars) — widened so either fits |
 | `remember_token` | char(64) null | SHA-256 of the remember-me token |
 | `version` | int unsigned | optimistic-lock version |
 | `email_verified_at` | timestamp null | set on confirmation — **this is the login gate** |
@@ -191,12 +196,31 @@ curl -X POST https://app.example.com/ajx/users \
 # 201 → { "data": { … } }   emits user.registered
 ```
 
-### List (paginate)
+### List (paginate, search, filter)
 
 ```bash
-curl 'https://app.example.com/ajx/users?limit=50&after=01J…' \
+curl 'https://app.example.com/ajx/users?limit=50&after=01J…&q=jane&verified=1' \
   -H 'Authorization: Bearer <token>'    # or same-site session cookie
 ```
+
+`q` matches a case-insensitive substring of either `username` or `email`; `verified`
+takes `1`/`0` (omit for either state). Both narrow the WHERE clause only — the
+keyset cursor (`after`) still orders by `user_id`, so paging through a filtered
+result set stays stable.
+
+### Lockout status / clear (admin)
+
+```bash
+curl 'https://app.example.com/ajx/users/01J…/lockout' -H 'Authorization: Bearer <token>'
+# → { "data": { "locked": true } }
+
+curl -X DELETE 'https://app.example.com/ajx/users/01J…/lockout' \
+  -H 'Authorization: Bearer <token>' -H 'X-CSRF-Token: …'
+# → 204, clears the failure counter immediately instead of waiting out its 15-minute TTL
+```
+
+Requires `user:unlock` — deliberately separate from `user:update-any`, since this
+reverses a brute-force control rather than editing profile data.
 
 ### Update (partial / PATCH semantics)
 
@@ -231,15 +255,15 @@ cookie. Each page exposes it as `<meta name="csrf-token">` and a hidden
 
 ---
 
-## Tenant-scoped sub-resources (feedback & settings)
+## Tenant-scoped sub-resources (settings)
 
 Beyond central identity, the plugin owns per-user data that lives in the
-**tenant** database (not central): **feedback** and the four **settings**
-singletons (profile, preferences, privacy, notification preferences).
+**tenant** database (not central): the four **settings** singletons (profile,
+preferences, privacy, notification preferences).
 
 Key differences from the identity tables:
 
-- **Tenant-routed, not central.** Their repositories take the request's
+- **Tenant-routed, not central.** Their repository takes the request's
   `DatabasePort` **after** `TenantContextStage` rebinds it — so rows land in the
   caller's tenant DB. Schema ships in `database/tenant-template/` and is applied
   per-tenant by the Tenancy tooling, **not** `migrate:run`.
@@ -250,30 +274,18 @@ Key differences from the identity tables:
   returns **409** when no tenant is active, so these never hit central by mistake.
 - **Self-scoped.** The user id always comes from `Identity`, never the body.
 
-### Feedback — full CRUD
-
-| Verb | Path | Who | Service |
-| --- | --- | --- | --- |
-| Create | `POST /ajx/feedback` | any authenticated user (`throttle:5,1`) | `FeedbackService::submit` |
-| List | `GET /ajx/feedback` | `feedback:manage` (admin triage) | `list` |
-| Read one | `GET /ajx/feedback/{id}` | self or `feedback:manage` | `find` |
-| Update status | `PATCH /ajx/feedback/{id}` | `feedback:manage` (forward-only) | `updateStatus` |
-
-Emits `feedback.submitted` (dispatched **directly** after the write — not via the
-outbox, since the write is a single tenant-scoped insert).
-
 ### Settings — read/update, one service
 
 `UserSettingsService` + `UserSettingsRepository` back all four resources
 (`getX`/`updateX`); each is `GET/PUT /ajx/{profile,preferences,privacy,notification-preferences}`,
 self-scoped, idempotent `PUT` via the portable `upsert`, audited on write. Demo
-UI at `/account/settings` and `/account/feedback`.
+UI at `/account/settings`.
 
-> **Internal, not published.** Feedback + settings are consumed only by this
-> plugin's own controllers, so their services are bound `bindInternal` and are
-> **not** in `exposes()` — only `UserServiceContract` is cross-module. Services
-> return the domain **entity**; the controller serialises via `entity->toArray()`
-> (no separate output DTO).
+> **Internal, not published.** Settings are consumed only by this plugin's own
+> controller, so the service is bound `bindInternal` and is **not** in
+> `exposes()` — only `UserServiceContract` is cross-module. The service returns
+> the domain **entity**; the controller serialises via `entity->toArray()` (no
+> separate output DTO).
 
 ---
 
@@ -282,10 +294,10 @@ UI at `/account/settings` and `/account/feedback`.
 | Concern | Mechanism |
 |---|---|
 | Authorization | In the **service**: admins act on anyone (`user:list`, `user:*-any`); a non-admin only on their own record (`hash_equals` self-check) |
-| Password storage | `HashingPort` (bcrypt); never `password_hash()` directly; plaintext never persisted/logged/returned |
-| Password strength | `PasswordPolicy` VO — length 12–72, ≥3 char classes, deny-list |
+| Password storage | `HashingPort` (bcrypt or Argon2id); never `password_hash()` directly; plaintext never persisted/logged/returned |
+| Password strength | `PasswordPolicy` VO — length 8–72, ≥3 char classes, deny-list |
 | Login timing | Constant-time decoy hash for unknown users |
-| Brute force | Per-identifier lockout via `CachePort` (5 failures / 15 min) |
+| Brute force | Per-identifier lockout via `CachePort` (5 failures / 15 min); admin with `user:unlock` can view/clear early |
 | Hash upgrades | `needsRehash()` → transparent rehash on successful login |
 | Central identity | Identity is GLOBAL (central `users`); repository pinned to the central connection |
 | PII in logs | Exception context carries IDs only; audit pseudonymises identifiers |
@@ -296,22 +308,29 @@ UI at `/account/settings` and `/account/feedback`.
 
 ## Reliability: the transactional outbox
 
-Integration events are **not** dispatched directly after commit (which can be
-lost on a crash). Instead:
+Integration events are written into `user_outbox` **inside the same
+transaction** as the state change (atomic) — so an event is never lost even if
+the process crashes right after commit. From there:
 
-1. The service writes the event into `user_outbox` **inside the same
-   transaction** as the state change (atomic).
-2. `user:outbox:relay` (cron/supervised) reads pending rows and dispatches them
-   to the `EventBus` — **at-least-once**, idempotency keyed by the event UUID.
+1. On the happy path, the service dispatches the just-committed event to the
+   `EventBus` **synchronously**, in-process, and marks its outbox row
+   dispatched — subscribers (e.g. `ProvisionTenantProfileListener`) see it
+   before the response returns.
+2. `user:outbox:relay` (cron/supervised) is the crash-recovery backstop: it
+   only re-delivers rows a crash **between commit and dispatch** left pending.
+   Delivery is **at-least-once**, idempotency keyed by the event UUID either way.
 
 ```
 register/update/delete ──tx──▶ [users row + user_outbox row]  COMMIT
                                             │
+                              in-process dispatch ──▶ EventBus ──▶ subscribers
+                                            │  (if that crashed before marking dispatched)
         cron: php cli user:outbox:relay ────▶ EventBus ──▶ subscribers
 ```
 
 Consumers must dedupe on the event id (it may be redelivered after a crash
-between dispatch and mark-dispatched).
+between dispatch and mark-dispatched). Still schedule the relay cron — it is
+the only thing that recovers a row orphaned by a mid-flight crash.
 
 ---
 
@@ -550,3 +569,9 @@ tenant-selection flow (the JWT `name` claim) and `UserService::find()` (attaches
 `avatarUrl` and `permissions`. `UserServiceContract::find()` accepts
 `bool $isAuth = false` — issuance-time lookups by Auth skip the
 self-or-permission check (the request Identity is still guest during login).
+
+## Documentation
+
+- [CLAUDE.md](CLAUDE.md) — this plugin's contract, config and rules (start here).
+- [docs/USER.md](docs/USER.md) — the full User reference.
+- [Kernel guides](https://github.com/AlfaCode-Team/hkm-kernel/tree/main/docs/guides) — the framework contracts this plugin builds on.

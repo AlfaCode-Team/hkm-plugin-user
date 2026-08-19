@@ -12,12 +12,12 @@
         "http.client",
         "validation.rules",
         "mail.delivery",
-        "feedback.management",
         "audit.trail",
         "i18n.translation"
     ],
     "exposes": [
-        "Plugins\\User\\API\\Contracts\\UserServiceContract"
+        "Plugins\\User\\API\\Contracts\\UserServiceContract",
+        "Plugins\\User\\API\\Contracts\\TenantProfileReaderContract"
     ],
     "views": "resources/views",
     "routes": [
@@ -154,7 +154,8 @@
             "path": "/ajx/users/{id}/verify-email",
             "handler": "Plugins\\User\\Infrastructure\\Http\\Controllers\\UserController@verifyEmail",
             "filters": [
-                "auth"
+                "auth",
+                "throttle:30,1"
             ]
         },
         {
@@ -162,7 +163,8 @@
             "path": "/ajx/users/{id}",
             "handler": "Plugins\\User\\Infrastructure\\Http\\Controllers\\UserController@update",
             "filters": [
-                "auth"
+                "auth",
+                "throttle:30,1"
             ]
         },
         {
@@ -170,7 +172,8 @@
             "path": "/ajx/users/{id}",
             "handler": "Plugins\\User\\Infrastructure\\Http\\Controllers\\UserController@update",
             "filters": [
-                "auth"
+                "auth",
+                "throttle:30,1"
             ]
         },
         {
@@ -178,7 +181,26 @@
             "path": "/ajx/users/{id}",
             "handler": "Plugins\\User\\Infrastructure\\Http\\Controllers\\UserController@destroy",
             "filters": [
-                "auth"
+                "auth",
+                "throttle:10,1"
+            ]
+        },
+        {
+            "method": "GET",
+            "path": "/ajx/users/{id}/lockout",
+            "handler": "Plugins\\User\\Infrastructure\\Http\\Controllers\\UserController@lockoutStatus",
+            "filters": [
+                "auth",
+                "throttle:30,1"
+            ]
+        },
+        {
+            "method": "DELETE",
+            "path": "/ajx/users/{id}/lockout",
+            "handler": "Plugins\\User\\Infrastructure\\Http\\Controllers\\UserController@clearLockout",
+            "filters": [
+                "auth",
+                "throttle:10,1"
             ]
         },
         {
