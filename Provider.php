@@ -71,8 +71,8 @@ final class Provider implements ModuleContract
             'http.client', // breached-password screening (opt-in via USER_BREACH_CHECK)
             'validation.rules',
             'mail.delivery',
-            'feedback.management',
             'audit.trail',
+            'i18n.translation',
         ];
     }
 

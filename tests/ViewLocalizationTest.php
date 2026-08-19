@@ -62,7 +62,7 @@ final class ViewLocalizationTest extends TestCase
     {
         return [
             'layouts/app', 'user', 'users/index', 'users/create', 'users/edit', 'users/show',
-            'account/settings', 'account/verify', 'account/feedback', 'emails/verify',
+            'account/settings', 'account/verify', 'emails/verify',
         ];
     }
 
@@ -139,7 +139,7 @@ final class ViewLocalizationTest extends TestCase
 
         foreach ([
             '>Users<', '>No users yet.<', '>Create account<', '>Save changes<',
-            '>Verify your email<', '>Submit feedback<', '>Timezone<', '>Privacy<',
+            '>Verify your email<', '>Timezone<', '>Privacy<',
         ] as $english) {
             $this->assertStringNotContainsString($english, $html, "untranslated: {$english}");
         }

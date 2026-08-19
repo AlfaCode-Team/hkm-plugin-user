@@ -16,6 +16,7 @@ use AlfacodeTeam\PhpServicePlatform\Kernel\Ports\CachePort;
 use AlfacodeTeam\PhpServicePlatform\Kernel\Ports\HashingPort;
 use AlfacodeTeam\PhpServicePlatform\Kernel\Security\Identity;
 use Plugins\Tenancy\API\Contracts\MembershipServiceContract;
+use Plugins\Tenancy\API\DTOs\TenantSummary;
 use Plugins\User\API\Contracts\UserServiceContract;
 use Plugins\User\API\DTOs\ListUsersQuery;
 use Plugins\User\API\DTOs\RegisterUserDTO;
@@ -31,6 +32,7 @@ use Plugins\User\Application\Ports\BreachChecker;
 use Plugins\User\Application\Ports\OutboxPort;
 use Plugins\User\Application\Ports\UserStore;
 use Plugins\User\Domain\Entities\User;
+use Plugins\User\Domain\Entities\UserProfile;
 use Plugins\User\Domain\Events\UserDeletedDomainEvent;
 use Plugins\User\Domain\Events\UserRegisteredDomainEvent;
 use Plugins\User\Domain\Events\UserUpdatedDomainEvent;
@@ -100,9 +102,15 @@ final class UserService implements UserServiceContract
      * ADMIN / back-office registration. Returns the FULL user record so it can
      * be shown in an admin table. Still arms an email-verification token; when
      * you need the plaintext token to email, use registerPublic() instead.
+     *
+     * @throws SecurityException without `user:create` — this is the ONLY thing
+     *         that distinguishes this from the public signup path; the route
+     *         filter (`auth`) merely requires SOME authenticated identity.
      */
     public function register(RegisterUserDTO $dto): UserDTO
     {
+        $this->requirePermission('user:create');
+
         [$user] = $this->provision($dto);
         return $user;
     }
@@ -278,33 +286,24 @@ final class UserService implements UserServiceContract
 
     public function find(string $id, bool $checkMembership = false, bool $isAuth = false): ?UserDTO
     {
-        if (!$isAuth)
+        if (!$isAuth) {
             $this->requireSelfOrPermission($id, 'user:read-any');
+        }
 
         $user = $this->repository->find($id);
-        if ($checkMembership) {
-            $membership = $this->membership !== null && $this->tenantId !== null && $user !== null
-                ? $this->membership->activeMember($user->id(), $this->tenantId)
-                : null;
-
-            if (is_null($membership) && $this->tenantId !== null) {
-                $this->audit->record('user.login.no_membership', meta: ['id' => self::pseudonymise($id), 'tenantId' => $this->tenantId]);
-                return null;
-            }
-
-            $user?->setMembership($membership);
-        }
         if ($user === null) {
             return null;
         }
 
-        if ($this->profiles !== null) {
-            $user->setProfile($this->profiles->getProfile($user->id(), $this->tenantId ?? ''));
+        $membership = null;
+        if ($checkMembership) {
+            [$membership, $accessible] = $this->resolveMembership($user, 'user.login.no_membership', ['id' => self::pseudonymise($id)]);
+            if (!$accessible) {
+                return null;
+            }
         }
 
-        $dto = UserDTO::fromEntity($user);
-
-        return $dto;
+        return UserDTO::fromEntity($user, $membership, $this->resolveProfile($user));
     }
 
     public function update(string $id, UpdateUserDTO $dto): ?UserDTO
@@ -460,19 +459,9 @@ final class UserService implements UserServiceContract
                 return null;
             }
             $user = $this->repository->findByIdentifier($identifier);
-            $membership = $this->membership !== null && $this->tenantId !== null && $user !== null
-                ? $this->membership->activeMember($user->id(), $this->tenantId)
-                : null;
-
-            if (is_null($membership) && $this->tenantId !== null) {
-                $this->audit->record('user.login.no_membership', meta: ['id' => self::pseudonymise($identifier), 'tenantId' => $this->tenantId]);
+            [$membership, $accessible] = $this->resolveMembership($user, 'user.login.no_membership', ['id' => self::pseudonymise($identifier)]);
+            if (!$accessible) {
                 return null;
-            }
-
-            $user?->setMembership($membership);
-
-            if ($this->profiles !== null) {
-                $user?->setProfile($this->profiles->getProfile($user->id(), $this->tenantId ?? ''));
             }
 
             // 2. Timing-safe: run a hash comparison even when the user is unknown.
@@ -500,7 +489,7 @@ final class UserService implements UserServiceContract
             }
 
 
-            return UserDTO::fromEntity($user);
+            return UserDTO::fromEntity($user, $membership, $this->resolveProfile($user));
 
         } catch (\Throwable $e) {
             throw $this->wrap($e, 'user.verify_credentials.failed');
@@ -515,26 +504,22 @@ final class UserService implements UserServiceContract
         }
 
         $user = $this->repository->findByIdentifier($identifier);
+        if ($user === null) {
+            return null;
+        }
 
+        $membership = null;
         if ($checkMembership) {
-            $membership = $this->membership !== null && $this->tenantId !== null && $user !== null
-                ? $this->membership->activeMember($user->id(), $this->tenantId)
-                : null;
-
-            if (is_null($membership) && $this->tenantId !== null) {
-                $this->audit->record('user.login.no_membership', meta: ['id' => self::pseudonymise($identifier), 'tenantId' => $this->tenantId]);
+            [$membership, $accessible] = $this->resolveMembership($user, 'user.login.no_membership', ['id' => self::pseudonymise($identifier)]);
+            if (!$accessible) {
                 return null;
             }
-
-            $user?->setMembership($membership);
-        }
-        if ($this->profiles !== null) {
-            $user?->setProfile($this->profiles->getProfile($user->id(), $this->tenantId ?? ''));
         }
 
-        return $user === null ? null : UserDTO::fromEntity($user);
+        return UserDTO::fromEntity($user, $membership, $this->resolveProfile($user));
     }
 
+    /** No authorization check by design — see the SECURITY note on the published contract. */
     public function resetPassword(string $userId, string $newPassword): bool
     {
         $user = $this->repository->find($userId);
@@ -544,19 +529,24 @@ final class UserService implements UserServiceContract
 
         $this->assertNotBreached($newPassword);
 
+        $this->collector->beginCollection();
         $this->transaction->begin();
         try {
             $user->changePassword($this->hasher->make($newPassword));
             $user->commitChanges();
+            $pending = $this->flushEvents($user);
             $this->repository->update($user);
             // Invalidate outstanding "remember me" cookies after a reset.
             $this->repository->updateRememberToken($userId, null);
             $this->transaction->commit();
         } catch (\Throwable $e) {
             $this->transaction->rollback();
+            $this->collector->discard();
             throw $this->wrap($e, 'user.password.reset_failed', ['id' => $userId]);
         }
 
+        $this->collector->release();
+        $this->deliver($pending);
         $this->audit->record('user.password.reset', userId: $userId);
 
         return true;
@@ -569,37 +559,41 @@ final class UserService implements UserServiceContract
         }
 
         $user = $this->repository->findByRememberToken(hash('sha256', $token));
-        $membership = $this->membership !== null && $this->tenantId !== null && $user !== null
-            ? $this->membership->activeMember($user->id(), $this->tenantId)
-            : null;
-
-        if (is_null($membership) && $this->tenantId !== null) {
-            $this->audit->record('user.find_by_token.no_membership', meta: ['id' => self::pseudonymise($token), 'tenantId' => $this->tenantId]);
-            return null;
-        }
-
-        $user?->setMembership($membership);
         if ($user === null || !$user->canLogin()) {
             return null;
         }
 
-        if ($this->profiles !== null) {
-            $user->setProfile($this->profiles->getProfile($user->id(), $this->tenantId ?? ''));
+        [$membership, $accessible] = $this->resolveMembership($user, 'user.find_by_token.no_membership', ['id' => self::pseudonymise($token)]);
+        if (!$accessible) {
+            return null;
         }
 
-        return UserDTO::fromEntity($user);
+        return UserDTO::fromEntity($user, $membership, $this->resolveProfile($user));
     }
 
+    /**
+     * @throws SecurityException when $checkMembership is true, the service is
+     *         tenant-scoped, and this user has no active membership in it.
+     */
     public function cycleRememberToken(string $userId, bool $checkMembership = false): string
     {
+        if ($checkMembership) {
+            $this->assertMembership($userId, 'user.remember_token.cycle.no_membership');
+        }
+
         $plaintext = bin2hex(random_bytes(32));
         $this->repository->updateRememberToken($userId, hash('sha256', $plaintext));
 
         return $plaintext;
     }
 
+    /** @throws SecurityException same condition as {@see cycleRememberToken()}. */
     public function clearRememberToken(string $userId, bool $checkMembership = false): void
     {
+        if ($checkMembership) {
+            $this->assertMembership($userId, 'user.remember_token.clear.no_membership');
+        }
+
         $this->repository->updateRememberToken($userId, null);
     }
 
@@ -613,20 +607,10 @@ final class UserService implements UserServiceContract
             return false;
         }
         if ($checkMembership) {
-
-            $membership = $this->membership !== null && $this->tenantId !== null && $user !== null
-                ? $this->membership->activeMember($user->id(), $this->tenantId)
-                : null;
-
-            if (is_null($membership) && $this->tenantId !== null) {
-                $this->audit->record('user.delete.no_membership', meta: ['id' => self::pseudonymise($id), 'tenantId' => $this->tenantId]);
+            [, $accessible] = $this->resolveMembership($user, 'user.delete.no_membership', ['id' => self::pseudonymise($id)]);
+            if (!$accessible) {
                 return false;
             }
-
-            $user?->setMembership($membership);
-        }
-        if ($this->profiles !== null) {
-            $user?->setProfile($this->profiles->getProfile($user->id(), $this->tenantId ?? ''));
         }
 
         $this->collector->beginCollection();
@@ -657,12 +641,39 @@ final class UserService implements UserServiceContract
         return true;
     }
 
+    public function lockoutStatus(string $userId): bool
+    {
+        $this->requirePermission('user:unlock');
+
+        $user = $this->repository->find($userId);
+        if ($user === null) {
+            return false;
+        }
+
+        // Login can be attempted with either identifier, and the lockout
+        // counter is keyed by whichever string was actually submitted — so a
+        // user is "locked out" if EITHER of their two identifiers is.
+        return $this->isLockedOut($user->username()) || $this->isLockedOut($user->email());
+    }
+
+    public function clearLockout(string $userId): bool
+    {
+        $this->requirePermission('user:unlock');
+
+        $user = $this->repository->find($userId);
+        if ($user === null) {
+            return false;
+        }
+
+        $this->clearLoginFailures($user->username());
+        $this->clearLoginFailures($user->email());
+        $this->audit->record('user.lockout.cleared', userId: $userId);
+
+        return true;
+    }
+
     // ─── internals ──────────────────────────────────────────────────────────
 
-    /**
-     * Collect the entity's domain events and write their integration
-     * counterparts to the outbox — all inside the active transaction.
-     */
     /**
      * Collect the entity's domain events and write their integration
      * counterparts to the outbox — all inside the active transaction. Returns
@@ -680,9 +691,7 @@ final class UserService implements UserServiceContract
 
             $integration = $this->toIntegration($event, $originTenant, $profile);
             if ($integration !== null) {
-                /** incase you want all event to fire there and then */
-                // $pending[$this->outbox->write($integration)] = $integration;
-                $this->outbox->write($integration);
+                $pending[$this->outbox->write($integration)] = $integration;
             }
         }
 
@@ -781,6 +790,63 @@ final class UserService implements UserServiceContract
             return;
         }
         $this->requirePermission($permission);
+    }
+
+    // ─── tenant read composition (membership / profile) ────────────────────────
+
+    /**
+     * Resolve this user's active membership in the current tenant, when the
+     * service is tenant-scoped (both a MembershipServiceContract and a
+     * tenantId are wired). Every caller that needs membership data for a
+     * response, or needs to gate access on it, goes through here instead of
+     * repeating the same lookup — it used to be copy-pasted across five
+     * methods with subtly different edge-case handling.
+     *
+     * @param array<string, mixed> $auditMeta merged into the audit record when access is denied
+     * @return array{0: ?TenantSummary, 1: bool} [membership, accessible]
+     *         accessible=false means the service IS tenant-scoped and this
+     *         user has NO active membership in it — the caller must treat
+     *         this exactly like "not found" (denial is already audited here).
+     *         accessible=true with membership=null means either membership
+     *         checking isn't active for this request (no tenant context) or
+     *         $user was null (nothing to check).
+     */
+    private function resolveMembership(?User $user, string $auditAction, array $auditMeta = []): array
+    {
+        if ($this->membership === null || $this->tenantId === null || $user === null) {
+            return [null, true];
+        }
+
+        $membership = $this->membership->activeMember($user->id(), $this->tenantId);
+        if ($membership === null) {
+            $this->audit->record($auditAction, meta: [...$auditMeta, 'tenantId' => $this->tenantId]);
+            return [null, false];
+        }
+
+        return [$membership, true];
+    }
+
+    /** @throws SecurityException when tenant-scoped and $userId has no active membership. */
+    private function assertMembership(string $userId, string $auditAction): void
+    {
+        if ($this->membership === null || $this->tenantId === null) {
+            return;
+        }
+
+        if ($this->membership->activeMember($userId, $this->tenantId) === null) {
+            $this->audit->record($auditAction, meta: ['id' => self::pseudonymise($userId), 'tenantId' => $this->tenantId]);
+            throw new SecurityException('user.membership_required', layer: 'service.user', context: ['tenantId' => $this->tenantId]);
+        }
+    }
+
+    /** The tenant-side profile (full name, avatar) for a user, when a reader is wired. Best-effort. */
+    private function resolveProfile(?User $user): ?UserProfile
+    {
+        if ($user === null || $this->profiles === null) {
+            return null;
+        }
+
+        return $this->profiles->getProfile($user->id(), $this->tenantId ?? '');
     }
 
     // ─── lockout (CachePort) ─────────────────────────────────────────────────

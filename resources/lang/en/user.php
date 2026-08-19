@@ -82,18 +82,6 @@ return [
         'save_privacy'       => 'Save privacy',
     ],
 
-    'feedback' => [
-        'title'       => 'Submit feedback',
-        'category'    => 'Category',
-        'message'     => 'Message',
-        'rating'      => 'Rating',
-        'rating_hint' => 'Rating (1–5, optional)',
-        'send'        => 'Send feedback',
-        'empty'       => 'No feedback.',
-        'user'        => 'User',
-        'triage'      => 'Triage',
-    ],
-
     // The scaffolded placeholder view a new project sees before it ships its own.
     'placeholder' => [
         'title'   => 'User plugin',

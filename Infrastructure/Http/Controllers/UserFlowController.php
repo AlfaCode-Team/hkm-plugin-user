@@ -39,15 +39,20 @@ final class UserFlowController
     ) {
     }
 
-    /** Admin: paginated user list → component "User/Index". */
+    /** Admin: paginated, searchable, filterable user list → component "User/Index". */
     public function adminIndex(Request $request): Response
     {
-        $page = $this->users->list(ListUsersQuery::fromRequest($request));
+        $query = ListUsersQuery::fromRequest($request);
+        $page  = $this->users->list($query);
 
         return $this->pageflow->render($request, 'User/Index', 'admin', [
             'users'      => array_map([$this, 'row'], $page->items),
             'hasMore'    => $page->hasMore,
             'nextCursor' => $page->nextCursor(),
+            // Echoed back so the page can prefill the search form and carry
+            // the current filter across "load more" / pagination requests.
+            'search'     => $query->search,
+            'verified'   => $query->verified,
             'seoHead'    => $this->seoPrivate('Users', request: $request),
         ]);
     }
@@ -57,8 +62,22 @@ final class UserFlowController
     {
         $user = $this->users->find($id);
 
+        // null = "don't know" (no user:unlock permission, or no such user) —
+        // distinct from true/false so the client can hide the unlock control
+        // entirely rather than showing a wrong state. A viewer without
+        // user:unlock can still see the rest of the page.
+        $locked = null;
+        if ($user !== null) {
+            try {
+                $locked = $this->users->lockoutStatus($id);
+            } catch (\Throwable) {
+                // Caller lacks user:unlock — render the page without it.
+            }
+        }
+
         return $this->pageflow->render($request, 'User/Show', 'admin', [
             'user'    => $user !== null ? $this->row($user) : null,
+            'locked'  => $locked,
             'seoHead' => $this->seoPrivate($user !== null ? "User {$user->username}" : 'User', request: $request),
         ]);
     }
@@ -66,7 +85,7 @@ final class UserFlowController
     /** Public: registration form → component "User/Register". */
     public function register(Request $request): Response
     {
-        return $this->pageflow->render($request, 'User/Register', 'admin', [
+        return $this->pageflow->render($request, 'User/Register', 'site', [
             'seoHead' => $this->seoFor(
                 title:       'Create your account',
                 description: 'Sign up in seconds — create a free account and get instant access.',
@@ -85,7 +104,7 @@ final class UserFlowController
      */
     public function verifyEmail(Request $request): Response
     {
-        return $this->pageflow->render($request, 'User/VerifyEmail', 'admin', [
+        return $this->pageflow->render($request, 'User/VerifyEmail', 'site', [
             'token'   => (string) $request->query('token', ''),
             'seoHead' => $this->seoPrivate('Verify your email', request: $request),
         ]);
@@ -99,7 +118,7 @@ final class UserFlowController
             ? $this->users->find($identity->userId)
             : null;
 
-        return $this->pageflow->render($request, 'User/Profile', 'admin', [
+        return $this->pageflow->render($request, 'User/Profile', 'site', [
             'user'    => $user !== null ? $this->row($user) : null,
             'seoHead' => $this->seoPrivate('Your profile', request: $request),
         ]);
