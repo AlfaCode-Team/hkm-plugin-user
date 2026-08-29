@@ -552,8 +552,8 @@ the domain.
 
 ---
 
-*Part of the AlfacodeTeam PhpServicePlatform. See the root `CLAUDE.md` and
-`docs/ai-context/` for framework-wide architecture.*
+*Part of the AlfacodeTeam PhpServicePlatform. See the [kernel guides](https://github.com/AlfaCode-Team/hkm-kernel/tree/main/docs/guides)
+for framework-wide architecture.*
 
 ## Tenant profile reads — `TenantProfileReaderContract` (published)
 
@@ -572,6 +572,5 @@ self-or-permission check (the request Identity is still guest during login).
 
 ## Documentation
 
-- [CLAUDE.md](CLAUDE.md) — this plugin's contract, config and rules (start here).
 - [docs/USER.md](docs/USER.md) — the full User reference.
 - [Kernel guides](https://github.com/AlfaCode-Team/hkm-kernel/tree/main/docs/guides) — the framework contracts this plugin builds on.
