@@ -6,3 +6,14 @@ composer.lock
 
 # AI assistant context — kept local, not shipped to GitHub
 CLAUDE.md
+/node_modules/
+node_modules/
+composer.local.lock
+composer.local.json
+.ground
+ui/package.json
+ui/*.lock
+ui/*.config.ts
+.env
+*.ground.yml
+ground.*
