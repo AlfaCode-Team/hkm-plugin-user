@@ -1,0 +1,28 @@
+{
+    "component": "User/Show",
+    "props": {
+        "pageflow_auth": {
+            "userId": "admin-user",
+            "tenantId": "tenant-1",
+            "username": "",
+            "fullName": "",
+            "email": "",
+            "avatarUrl": null,
+            "roles": [
+                "admin"
+            ],
+            "permissions": [
+                "*"
+            ],
+            "authenticated": true
+        },
+        "errors": [],
+        "user": null,
+        "locked": null,
+        "seoHead": "User"
+    },
+    "url": "/admin/users/00000000-0000-4000-8000-000000000000",
+    "version": "1",
+    "clearHistory": false,
+    "encryptHistory": false
+}

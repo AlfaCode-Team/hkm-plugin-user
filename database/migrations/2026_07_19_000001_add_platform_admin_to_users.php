@@ -51,15 +51,31 @@ return new class implements MigrationInterface {
 
     public function down(SchemaBuilderInterface $schema): void
     {
-        // Drop the COLUMN only — deliberately not the index.
+        // Drop the INDEX, then the column underneath it. Both, in that order.
         //
-        // On MySQL, dropping a column automatically drops any single-column
-        // index over it. Compiling an explicit DROP INDEX alongside the column
-        // drop therefore fails with "Can't DROP INDEX … check that it exists":
-        // by the time that statement runs the index is already gone, and the
-        // rollback aborts HALF-DONE — column removed, migration still recorded
-        // as applied, schema and tracking table out of sync.
+        // This used to drop the column alone, because LetMigrate reordered an
+        // ALTER's clauses to put column drops FIRST: on MySQL the column drop
+        // silently took its single-column index with it, so the DROP INDEX that
+        // followed failed with "Can't DROP INDEX … check that it exists" and the
+        // rollback aborted half-done. Omitting the index drop was the only shape
+        // that survived that ordering.
+        //
+        // It survived on MySQL only. Every other engine refuses the column drop
+        // while an index still references it — SQLite answers "error in index
+        // idx_users_platform_admin after drop column: no such column" — so this
+        // rollback could not run anywhere else, in the direction nobody exercises
+        // until they uninstall the plugin.
+        //
+        // LetMigrate now compiles drops dependents-first (foreign keys, then
+        // indexes, then columns), so the correct declaration is also the portable
+        // one. EXECUTED green on SQLite (`hkm ground migrate`: 10 applied, rolled
+        // back clean). On MySQL, PostgreSQL and SQL Server the emitted SQL was
+        // read rather than run — each compiles to DROP INDEX followed by DROP
+        // COLUMN in its own dialect — because no server for those was reachable
+        // here. Run `hkm ground migrate` against them before trusting the
+        // rollback on those engines.
         $schema->table('users', static function ($t) {
+            $t->dropIndex('idx_users_platform_admin');
             $t->dropColumn('is_platform_admin');
         });
     }

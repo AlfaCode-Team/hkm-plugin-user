@@ -1,0 +1,46 @@
+{
+    "component": "User/Index",
+    "props": {
+        "pageflow_auth": {
+            "userId": "admin-user",
+            "tenantId": "tenant-1",
+            "username": "",
+            "fullName": "",
+            "email": "",
+            "avatarUrl": null,
+            "roles": [
+                "admin"
+            ],
+            "permissions": [
+                "*"
+            ],
+            "authenticated": true
+        },
+        "errors": [],
+        "users": [
+            {
+                "id": "7618385CAEA382F562305468E5",
+                "username": "janedoe",
+                "email": "jane@example.test",
+                "emailVerified": true,
+                "createdAt": "2026-01-01T00:00:00+00:00"
+            },
+            {
+                "id": "45358DD8587F2DE278EC7411A5",
+                "username": "johnsmith",
+                "email": "john@example.test",
+                "emailVerified": false,
+                "createdAt": "2026-01-01T00:00:00+00:00"
+            }
+        ],
+        "hasMore": false,
+        "nextCursor": null,
+        "search": null,
+        "verified": null,
+        "seoHead": "Users"
+    },
+    "url": "/admin/users",
+    "version": "1",
+    "clearHistory": false,
+    "encryptHistory": false
+}
