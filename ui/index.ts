@@ -4,3 +4,8 @@
 // admin/Pages (admin surface) and site/Pages (public surface).
 export { UserBadge } from "./components/UserBadge";
 export type { UserSummary } from "./components/UserBadge";
+
+// The sign-in form's field markup, shared by Register and VerifyEmail so the
+// two halves of the sign-up flow cannot drift apart.
+export { AuthField, AuthPasswordField, AuthCrest } from "./components/AuthField";
+export type { AuthFieldProps } from "./components/AuthField";

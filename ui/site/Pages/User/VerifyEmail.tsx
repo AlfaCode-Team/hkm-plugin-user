@@ -1,76 +1,136 @@
-import { useForm, Head, Link } from "@pageflow/react";
+import type { ReactNode } from "react";
+import { useForm, Link } from "@pageflow/react";
+import { AuthLayout } from "@pageflow/admin";
+import { AuthCrest, AuthField } from "@user";
 import { Button } from "@ui/button";
-import { Input } from "@ui/input";
-import { Label } from "@ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@ui/card";
+import { CheckCircle2, KeyRound, Loader2, MailCheck, ShieldCheck } from "lucide-react";
 
-// PUBLIC page contributed by the User PLUGIN. The public surface globs
-// plugins/*/site/Pages/**, so this resolves as component "User/VerifyEmail".
-// Server: UserFlowController@verifyEmail. The emailed link points at
-// /verify-email?token=... — the server passes `token` as a prop for prefill.
-// Posts to the plugin's own /ajx/users/verify (UserController@verifyEmailByToken).
-export default function VerifyEmail({ token = "" }: { token?: string }) {
+/**
+ * PUBLIC page contributed by the User plugin — component `"User/VerifyEmail"`.
+ *
+ * Server: `UserFlowController@verifyEmail` (`GET /verify-email`). The emailed
+ * link points at `/verify-email?token=…` and the controller passes `token`
+ * through as a prop, so arriving from the email prefills the field and the user
+ * only has to press the button. Posts to `POST /ajx/users/verify`.
+ *
+ * Same chrome as Register and the platform's sign-in page — these three are one
+ * flow, and looked like three separate products.
+ *
+ * Title comes from the server's `seoHead` (here `seoPrivate`, so the page is
+ * noindex — a token-bearing URL must never enter a search index), which is why
+ * this sets no `<Head title>`.
+ */
+interface VerifyEmailProps {
+  /** Prefilled from `?token=` by the controller. */
+  token?: string;
+  appName?: string;
+  logoUrl?: string | null;
+  loginUrl?: string;
+  registerUrl?: string;
+}
+
+export default function VerifyEmail({
+  token = "",
+  appName,
+  logoUrl,
+  loginUrl = "/login",
+  registerUrl = "/register",
+}: VerifyEmailProps) {
   const form = useForm({ token });
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
     form.post("/ajx/users/verify");
   }
 
+  // Arriving from the emailed link means the field is already filled and the
+  // only thing left is to confirm — so say that, rather than instructing
+  // someone to paste a token they can see is already there.
+  const arrivedWithToken = token !== "";
+
   return (
-    <>
-      <Head title="Verify your email" />
-      <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center p-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Verify your email</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="mb-4 text-sm text-muted-foreground">
-              Paste the verification token from your email below, or follow the
-              link we sent you.
-            </p>
-            {form.wasSuccessful ? (
-              <div className="space-y-4 text-center">
-                <p className="text-sm text-foreground">
-                  Your email has been verified. You can now sign in.
-                </p>
-                <Button asChild className="w-full">
-                  <Link href="/login">Sign in</Link>
-                </Button>
-              </div>
-            ) : (
-              <form onSubmit={submit} className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="token">Verification token</Label>
-                  <Input
-                    id="token"
-                    autoComplete="off"
-                    value={form.data.token}
-                    onChange={(e) => form.setData("token", e.target.value)}
-                  />
-                  {form.errors.token && (
-                    <p className="text-sm text-destructive">{form.errors.token}</p>
-                  )}
-                </div>
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={form.processing || !form.data.token}
-                >
-                  {form.processing ? "Verifying…" : "Verify email"}
-                </Button>
-              </form>
-            )}
-          </CardContent>
-        </Card>
-        <p className="mt-4 text-center text-sm text-muted-foreground">
-          Need a new account?{" "}
-          <Button variant="link" className="h-auto p-0" asChild>
-            <Link href="/register">Sign up</Link>
-          </Button>
-        </p>
-      </main>
-    </>
+    <Card className="w-full max-w-md shadow-lg">
+      <CardHeader className="space-y-1">
+        <AuthCrest
+          logoUrl={logoUrl}
+          icon={form.wasSuccessful ? CheckCircle2 : ShieldCheck}
+          alt={appName ?? ""}
+        />
+        <CardTitle className="text-center text-2xl font-bold">
+          {form.wasSuccessful ? "Email verified" : "Verify your email"}
+        </CardTitle>
+        <CardDescription className="text-center">
+          {form.wasSuccessful
+            ? "Your address is confirmed — you can sign in now."
+            : arrivedWithToken
+              ? "Confirm the address this link was sent to."
+              : "Paste the token from your email, or follow the link we sent you."}
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent>
+        {form.wasSuccessful ? (
+          <div className="space-y-4 text-center">
+            <div className="flex justify-center">
+              <MailCheck className="h-10 w-10 text-muted-foreground" aria-hidden={true} />
+            </div>
+            <Button asChild className="w-full">
+              <Link href={loginUrl}>Sign in</Link>
+            </Button>
+          </div>
+        ) : (
+          /* See Register.tsx for why this is `noValidate` and carries no toast. */
+          <form onSubmit={submit} className="space-y-4" noValidate>
+            <AuthField
+              id="token"
+              label="Verification token"
+              icon={KeyRound}
+              placeholder="Paste the token from your email"
+              autoComplete="off"
+              autoFocus={!arrivedWithToken}
+              disabled={form.processing}
+              value={form.data.token}
+              onChange={(value) => form.setData("token", value)}
+              error={form.errors.token}
+              className="pl-10 font-mono"
+            />
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={form.processing || form.data.token === ""}
+            >
+              {form.processing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden={true} />
+              ) : (
+                <ShieldCheck className="mr-2 h-4 w-4" aria-hidden={true} />
+              )}
+              {form.processing ? "Verifying…" : "Verify email"}
+            </Button>
+          </form>
+        )}
+      </CardContent>
+
+      {!form.wasSuccessful && (
+        <CardFooter className="justify-center">
+          <p className="text-sm text-muted-foreground">
+            Need a new account?{" "}
+            <Link href={registerUrl} className="text-foreground hover:underline">
+              Sign up
+            </Link>
+          </p>
+        </CardFooter>
+      )}
+    </Card>
   );
 }
+
+VerifyEmail.layout = (page: ReactNode) => <AuthLayout>{page}</AuthLayout>;
