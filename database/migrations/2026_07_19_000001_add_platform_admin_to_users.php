@@ -39,7 +39,7 @@ return new class implements MigrationInterface {
             // Default 0: every existing and future account is a normal user
             // until explicitly promoted. Privilege is never acquired by
             // accident, only by a deliberate write.
-            $t->boolean('is_platform_admin')->default(0)
+            $t->boolean('is_platform_admin')->default(false)
                 ->comment('1 = platform (super) administrator — full cross-tenant access');
 
             // Partial-ish lookup: the admin list is a handful of rows in a table
