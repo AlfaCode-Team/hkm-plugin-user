@@ -1,0 +1,21 @@
+{
+  "component": "User/Register",
+  "props": {
+    "pageflow_auth": {
+      "userId": "",
+      "tenantId": "",
+      "username": "",
+      "fullName": "",
+      "email": "",
+      "avatarUrl": null,
+      "roles": [],
+      "permissions": [],
+      "authenticated": false
+    },
+    "errors": []
+  },
+  "url": "/register",
+  "version": "1",
+  "clearHistory": false,
+  "encryptHistory": false
+}

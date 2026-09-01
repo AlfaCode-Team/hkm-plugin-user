@@ -37,16 +37,16 @@
     },
     "repositories": [
         {
-            "type": "path",
-            "url": "../hkm-plugin-ground"
+            "type": "vcs",
+            "url": "https://github.com/AlfaCode-Team/hkm-plugin-ground"
         },
         {
-            "type": "path",
-            "url": "../hkm-plugin-pageflow"
+            "type": "vcs",
+            "url": "https://github.com/AlfaCode-Team/hkm-plugin-pageflow"
         },
         {
-            "type": "path",
-            "url": "../hkm-plugin-vitemanifest"
+            "type": "vcs",
+            "url": "https://github.com/AlfaCode-Team/hkm-plugin-vitemanifest"
         },
         {
             "type": "vcs",
