@@ -11,6 +11,7 @@
     ],
     "require": {
         "php": ">=8.4",
+        "alfacode-team/php-service-platform": "dev-master",
         "alfacode-team/hkm-plugin-audit": "dev-main",
         "alfacode-team/hkm-plugin-crypto": "dev-main",
         "alfacode-team/hkm-plugin-database": "dev-main",
@@ -36,16 +37,20 @@
     },
     "repositories": [
         {
-            "type": "path",
-            "url": "../hkm-plugin-ground"
+            "type": "vcs",
+            "url": "https://github.com/AlfaCode-Team/hkm-plugin-ground"
         },
         {
-            "type": "path",
-            "url": "../hkm-plugin-pageflow"
+            "type": "vcs",
+            "url": "https://github.com/AlfaCode-Team/hkm-plugin-pageflow"
         },
         {
-            "type": "path",
-            "url": "../hkm-plugin-vitemanifest"
+            "type": "vcs",
+            "url": "https://github.com/AlfaCode-Team/hkm-plugin-vitemanifest"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/AlfaCode-Team/hkm-kernel"
         },
         {
             "type": "vcs",
