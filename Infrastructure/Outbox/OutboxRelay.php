@@ -36,11 +36,21 @@ final class OutboxRelay
             try {
                 $payload = json_decode((string) $row['payload'], true, 512, JSON_THROW_ON_ERROR);
 
-                $this->eventBus->dispatch(new GenericIntegrationEvent(
+                $failures = $this->eventBus->dispatch(new GenericIntegrationEvent(
                     name:    (string) $row['event_name'],
                     version: (string) $row['event_version'],
                     payload: is_array($payload) ? $payload : [],
                 ));
+
+                // A listener that threw is not a delivery — park the row for
+                // retry instead of consuming it. Same reasoning, and the same
+                // production incident, as OutboxRelayService; this class is
+                // currently unwired (the Provider builds OutboxRelayService),
+                // but it carries the identical bug and would reintroduce it the
+                // moment anyone wired it.
+                if ($failures !== []) {
+                    throw new \RuntimeException('Listener(s) failed: ' . implode(', ', array_keys($failures)));
+                }
 
                 $this->markDispatched((int) $row['id']);
                 $dispatched++;

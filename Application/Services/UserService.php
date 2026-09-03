@@ -769,8 +769,22 @@ final class UserService implements UserServiceContract
     private function deliver(array $pending): void
     {
         foreach ($pending as $id => $event) {
-            $this->eventBus->dispatch($event);
-            $this->outbox->markDispatched($id);
+            // Only a delivery every listener actually handled may be marked
+            // dispatched. dispatch() isolates subscriber failures, and marking
+            // unconditionally read that isolation as success: the row was
+            // consumed, the relay never saw it again, and whatever the listener
+            // was there to do simply never happened — while the outbox recorded
+            // a clean delivery.
+            //
+            // Leaving a partially-failed row PENDING hands it to the relay,
+            // which retries it and eventually parks it as failed with the cause
+            // attached. Redelivery is the documented contract of this outbox
+            // (at-least-once, consumers dedupe on the event id), so a listener
+            // that already succeeded seeing the event twice is expected and
+            // safe.
+            if ($this->eventBus->dispatch($event) === []) {
+                $this->outbox->markDispatched($id);
+            }
         }
     }
 

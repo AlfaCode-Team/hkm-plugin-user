@@ -238,9 +238,31 @@ final class User extends Entity
     }
 
     /** A verified email is the login gate (replaces the old status column). */
+    /**
+     * May this account sign in at all?
+     *
+     * NOT a verification check any more. Email verification USED to gate sign-in
+     * here, and that made a mail failure unrecoverable: registration completed,
+     * the row existed, the person had a password — and a stopped queue worker, a
+     * down SMTP host or a spam-foldered message locked them out permanently, with
+     * no way to retry from the outside. Failing the registration outright would
+     * have been kinder than that.
+     *
+     * The platform now uses SOFT verification. An unverified account signs in and
+     * works at a reduced level; the `verified` route filter
+     * (RequireVerifiedEmailStage) is what withholds the actions that genuinely
+     * need a proven address, and the profile banner is what asks for it. So the
+     * answer here is "yes" for any account the repository was willing to return —
+     * every lookup already filters `deleted_at IS NULL`, so a soft-deleted user
+     * never reaches this method.
+     *
+     * Kept as a named seam rather than deleted: it is still the ONE place that
+     * decides whether an account may hold a session, so a future suspension or
+     * lockout flag belongs here and nowhere else.
+     */
     public function canLogin(): bool
     {
-        return $this->emailVerifiedAt() !== null;
+        return true;
     }
 
     /** Persistence-only accessors — never serialise these into a response. */
