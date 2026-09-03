@@ -103,6 +103,22 @@ interface UserServiceContract
     public function verifyCredentials(string $identifier, string $password): ?UserDTO;
 
     /**
+     * Whether these credentials are CORRECT but the account's email has never
+     * been verified — the one login failure that is the user's to fix rather
+     * than a mistyped password. Returns the account's email so the caller can
+     * bind the verification flow to it, or null for every other outcome.
+     *
+     * Disclosure is gated on the password being right, so this reveals nothing
+     * to someone who does not already hold the credentials: verifyCredentials()
+     * stays the enumeration-safe entry point and answers null either way.
+     *
+     * SIDE-EFFECT FREE by contract. Callers reach for it right after a failed
+     * verifyCredentials(), so counting a second failure here would halve the
+     * real lockout threshold and log every refusal twice.
+     */
+    public function credentialsAwaitingVerification(string $identifier, string $password): ?string;
+
+    /**
      * Resolve a user from a plaintext "remember me" token (the second segment of
      * a recaller cookie). Returns null on any miss so a forged/stale token can
      * never authenticate. Timing-safe: the token is matched by its stored hash.

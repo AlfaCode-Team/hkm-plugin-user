@@ -33,6 +33,7 @@ use Plugins\User\Infrastructure\Cli\RelayUserOutboxCommand;
 use Plugins\User\Infrastructure\Http\Controllers\UserController;
 use Plugins\User\Infrastructure\Http\Controllers\UserPageController;
 use Plugins\User\Infrastructure\Http\Controllers\UserSettingsController;
+use Plugins\User\Infrastructure\Http\Stages\RequireVerifiedEmailStage;
 use Plugins\User\Infrastructure\Listeners\ProvisionTenantProfileListener;
 use Plugins\User\Application\Ports\OutboxPort;
 use Plugins\User\Infrastructure\Persistence\OutboxRepository;
@@ -210,6 +211,15 @@ final class Provider implements ModuleContract
                 ),
             ));
         });
+
+        // ── DECLARATIVE route filter — opt-in per route ──────────────────────
+        // Sign-in no longer requires a verified address (User::canLogin()), so
+        // this is where the platform says which actions the unverified level
+        // excludes: a route names it in module.json / proj.json —
+        //   "filters": ["auth", "verified"]
+        // Registered as a filter and NOT also as a global hook: one stage, one
+        // mechanism, or it would run twice per request.
+        $http->filter('verified', RequireVerifiedEmailStage::class);
 
         // Write the per-tenant user_profiles row from an at-signup profile block.
         // Resolved from the CoreContainer: the PROJECT binds this WITH a

@@ -12,6 +12,7 @@ use Plugins\User\API\DTOs\ListUsersQuery;
 use Plugins\User\API\DTOs\RegisterUserDTO;
 use Plugins\User\API\DTOs\UpdateUserDTO;
 use Plugins\User\API\DTOs\VerifyEmailDTO;
+use Plugins\User\API\Support\VerificationBinding;
 use Project\Http\Controllers\ApiController;
 
 /**
@@ -50,6 +51,14 @@ final class UserController extends ApiController
         $dto   = RegisterUserDTO::fromRequest($this->resolveRequest());
         $token = $this->users->registerPublic($dto);
         $this->queueVerificationEmail($dto->email->value(), $token);
+
+        // Arm the pending-verification binding for this browser. Two things
+        // depend on it and both start HERE, at the only moment we know a token
+        // was just issued for this address: /verify-email will admit the
+        // registrant (it turns away browsers with no pending verification and
+        // no emailed token), and a resend from that page can only ever target
+        // the address that just registered.
+        $this->bindPendingVerification($dto->email->value());
 
         return Response::json(['status' => 'pending_verification'], 202)
             ->withHeader('Location', '/verify-email');
@@ -94,9 +103,6 @@ final class UserController extends ApiController
      * Token in the request body/query; no identity required. Always a generic
      * response so a bad/expired token reveals nothing.
      */
-    /** Cookie that binds a resend to the email of a just-attempted expired token. */
-    private const RESEND_BIND_COOKIE = 'vrf_bind';
-    private const RESEND_BIND_MINUTES = 30;
 
     /** Per-email resend cap: max sends within the window (defence-in-depth). */
     private const RESEND_MAX_PER_EMAIL = 3;
@@ -131,7 +137,7 @@ final class UserController extends ApiController
     private function expiredResponse(?string $email): Response
     {
         if ($email !== null && $email !== '') {
-            $this->queueCookie(self::RESEND_BIND_COOKIE, $this->bindHash($email), self::RESEND_BIND_MINUTES);
+            $this->bindPendingVerification($email);
         }
 
         return Response::json([
@@ -158,10 +164,10 @@ final class UserController extends ApiController
     {
         $email = trim((string) $this->resolveRequest()->input('email', ''));
 
-        $bound = $this->cookie(self::RESEND_BIND_COOKIE);
+        $bound = $this->cookie(VerificationBinding::COOKIE);
 
-        if ($bound !== null && $bound !== ''
-            && !hash_equals($bound, $this->bindHash($email))) {
+        if (VerificationBinding::looksBound($bound)
+            && !VerificationBinding::matches((string) $bound, $email)) {
             // Bound to a different address than the one submitted — refuse, and
             // give nothing away about either address.
             return Response::forbidden('This email does not match your pending verification request.');
@@ -179,8 +185,15 @@ final class UserController extends ApiController
             }
         }
 
-        // One-shot binding: clear it so the cookie can't be replayed.
-        $this->forgetCookie(self::RESEND_BIND_COOKIE);
+        // RE-ARM rather than clear. The binding is what keeps /verify-email
+        // reachable while the user waits for the mail, so forgetting it here
+        // locked the very page that issued the request out on the next reload.
+        // Re-issuing it for the SAME address grants nothing new (it only ever
+        // narrows which address a resend may target) and refreshes the window
+        // the user is actually still inside; an abandoned flow lapses on TTL.
+        if ($email !== '') {
+            $this->bindPendingVerification($email);
+        }
 
         return Response::json([
             'status'  => 'pending_verification',
@@ -218,13 +231,16 @@ final class UserController extends ApiController
     }
 
     /**
-     * Keyed HMAC of a normalised email. Stored (encrypted) in the binding cookie
-     * so the raw address is never written to the client, and compared in
-     * constant time on resend.
+     * Mark this browser as having a verification pending for $email: admits it
+     * to /verify-email and pins any resend to this one address.
      */
-    private function bindHash(string $email): string
+    private function bindPendingVerification(string $email): void
     {
-        return hash_hmac('sha256', strtolower(trim($email)), (string) env('APP_KEY'));
+        $this->queueCookie(
+            VerificationBinding::COOKIE,
+            VerificationBinding::hash($email),
+            VerificationBinding::MINUTES,
+        );
     }
 
     public function show(string $id): Response
