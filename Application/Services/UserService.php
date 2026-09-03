@@ -691,6 +691,10 @@ final class UserService implements UserServiceContract
 
             $integration = $this->toIntegration($event, $originTenant, $profile);
             if ($integration !== null) {
+                /**
+                 * incase you want all event to fire with the hkm cli user:outbox:relay
+                 * $this->outbox-write($integration);
+                 */
                 $pending[$this->outbox->write($integration)] = $integration;
             }
         }
