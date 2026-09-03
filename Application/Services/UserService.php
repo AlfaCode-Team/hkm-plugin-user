@@ -497,6 +497,65 @@ final class UserService implements UserServiceContract
 
     }
 
+    /**
+     * Correct credentials for an account that has never verified its email.
+     *
+     * Login refuses these (User::canLogin() requires a verified address), and
+     * from verifyCredentials() that refusal is indistinguishable from a wrong
+     * password — so the person who just signed up is told their credentials are
+     * invalid and has nowhere to go. This answers the one extra question the
+     * sign-in surface needs to say something true and actionable instead.
+     *
+     * Read-only on purpose: it runs immediately after a failed
+     * verifyCredentials() which has ALREADY recorded that failure, so no
+     * lockout counter is touched and no second failure is audited here.
+     *
+     * @return string|null the account email when it is awaiting verification
+     */
+    public function credentialsAwaitingVerification(string $identifier, string $password): ?string
+    {
+        if ($identifier === '' || $password === '') {
+            return null;
+        }
+
+        try {
+            // A locked-out account says nothing at all — the lockout is the
+            // answer, and disclosing state through it would hand an attacker a
+            // probe that outlives the lockout.
+            if ($this->isLockedOut($identifier)) {
+                return null;
+            }
+
+            $user = $this->repository->findByIdentifier($identifier);
+            if ($user === null || $user->emailVerifiedAt() !== null) {
+                return null;
+            }
+
+            // Same seat requirement as verifyCredentials(): without an active
+            // membership in this tenant the sign-in fails for a different
+            // reason, and "verify your email" would be a false lead. Audited
+            // under its own action so this read is never mistaken for a login.
+            [, $accessible] = $this->resolveMembership($user, 'user.login.unverified.no_membership', [
+                'id' => self::pseudonymise($identifier),
+            ]);
+            if (!$accessible) {
+                return null;
+            }
+
+            // Gate the disclosure on the password being right. Without this the
+            // endpoint would confirm which addresses hold unverified accounts.
+            if (!$this->hasher->check($password, $user->passwordHash())) {
+                return null;
+            }
+
+            $this->audit->record('user.login.unverified_email', userId: $user->id());
+
+            return $user->email();
+        } catch (\Throwable $e) {
+            throw $this->wrap($e, 'user.credentials_awaiting_verification.failed');
+        }
+    }
+
     public function findByIdentifier(string $identifier, bool $checkMembership = false): ?UserDTO
     {
         if ($identifier === '') {
