@@ -132,8 +132,15 @@ return new class implements MigrationInterface {
             $t->index(['remember_token'], 'idx_remember_token');
 
             $t->engine('InnoDB');
+            // No ->collation() on purpose: inherit LetMigrate's
+            // utf8mb4_unicode_ci Blueprint default. Pinning utf8mb4_0900_ai_ci
+            // made this table MySQL-8-only — it exists on neither MySQL 5.7 nor
+            // MariaDB — and left `users` disagreeing with every table created
+            // without an explicit pin, including LetMigrate's own `migrations`.
+            // A foreign key may not cross collations, so `user_tenants.user_id`
+            // (and any project table keyed on a user) could not reference this
+            // one. One collation per database is what makes those keys compile.
             $t->charset('utf8mb4');
-            $t->collation('utf8mb4_0900_ai_ci');
             $t->rowFormat('DYNAMIC');
         });
     }

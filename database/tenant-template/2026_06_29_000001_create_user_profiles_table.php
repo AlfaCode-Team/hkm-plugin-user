@@ -44,8 +44,11 @@ return new class implements MigrationInterface {
             $t->primary(['user_id'], 'pk_user_profiles');
 
             $t->engine('InnoDB');
+            // No ->collation(): inherit LetMigrate's utf8mb4_unicode_ci default.
+            // utf8mb4_0900_ai_ci was pinned here, which does not exist on MySQL
+            // 5.7 or on MariaDB — so CREATE TABLE failed outright and tenant
+            // provisioning died on any server that was not MySQL 8.
             $t->charset('utf8mb4');
-            $t->collation('utf8mb4_0900_ai_ci');
         });
     }
 

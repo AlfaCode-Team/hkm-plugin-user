@@ -108,8 +108,9 @@ return new class implements MigrationInterface {
             $t->index(['status', 'occurred_at'], 'idx_status_occurred');
 
             $t->engine('InnoDB');
+            // No ->collation(): inherit LetMigrate's utf8mb4_unicode_ci default.
+            // See 2026_01_01_000000_create_user_table.php for the full reason.
             $t->charset('utf8mb4');
-            $t->collation('utf8mb4_0900_ai_ci');
         });
     }
 
